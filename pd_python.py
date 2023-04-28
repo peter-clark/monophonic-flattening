@@ -131,6 +131,8 @@ def find_3note(note):
     channel = GM_dict[int(note)][1]
     if(channel=="low"):
         note_3 = 10 # not 1 as those are used for mono channels
+        #if int(note)==45:
+        #    print(note)
     elif(channel=="mid"):
         note_3 = 11
     else:
@@ -195,7 +197,6 @@ def extract_pattern(filename, size):
         f = str(file_contents[0])
         pattern_raw = []
         left_idx=0
-        #print(f)
 
         # SEPARATE INTO NAME AND STEPS
         for c in range(len(f)-1):
@@ -207,9 +208,6 @@ def extract_pattern(filename, size):
                 l = f[left_idx:c].replace(",","")
                 pattern_raw.append(l)
 
-        #for i in range(len(pattern_raw)):
-        #    print(pattern_raw[i])
-
         # EXTRACT MIDI AND MONO INFO
         genre = pattern_raw[0]
         patt = pattern_raw[1:]
@@ -217,7 +215,6 @@ def extract_pattern(filename, size):
         pattern = []
         pattern.append(genre)
         pattern_3 = []
-        #print(len(pattern_raw))
         for i in range(size):
             step = patt[i]
             s = step.split(" ")
@@ -235,11 +232,11 @@ def extract_pattern(filename, size):
                     s_3=[]
             pattern.append(s_8)
             pattern_3.append(s_3)
-        fullpatt = monophonic_reductions(pattern_3,pattern)
+        fullpatt, dass_velocity = monophonic_reductions(pattern_3,pattern)
         for i in range(len(fullpatt)):
             pattern.append(fullpatt[i])
         pattern_list.append(pattern)
-    return pattern_list
+    return pattern_list, dass_velocity
 
 def save_pattern16(pattern, fn, save_bool):
     if save_bool:
@@ -253,53 +250,131 @@ def monophonic_reductions(patt, poly_patt):
     patt_low=[0]*16
     patt_mid=[0]*16
     patt_high=[0]*16
-    mono_patterns = [[0 for x in range(16)] for y in range(5)]
+    mono_patterns = [[0 for x in range(16)] for y in range(10)]
     mono_master = [[] for x in range(16)]
-    poly_patt = poly_patt[1:]
+    poly_patt = poly_patt[1:] # Clip name
+
+    total_low=0
+    total_mid=0
+    total_high=0
+    total_patt=0
+
+
+    # From find_3number() to counting #number of hits at timestep
+    # Also counts total # of hits in overall channel and pattern 
     for i in range(len(patt)):
         for j in range(len(patt[i])):
             if(patt[i][j]==10):
                 patt_low[i]+=1
+                total_low+=1
+                total_patt+=1
             elif(patt[i][j]==11):
                 patt_mid[i]+=1
+                total_mid+=1
+                total_patt+=1
             elif(patt[i][j]==12):
                 patt_high[i]+=1
+                total_high+=1
+                total_patt+=1
     
-    sync_sal_profile16 = [5,1,2,1, 3,1,2,1, 4,1,2,1, 3,1,2,1] #Longuet-Higgen's Lee
-    memory_residual_profile16 = [1,1.05,0.75,-0.75, 1.5,-0.4,-0.5,0, 1.25,-0.5,0.25,-0.25, 0,-1.25,-1,0.25] #PalmerKrumhansl
-    threshold = 0.49 #arbitrary
-    sync_threshold = 4.5 #arbys
-    weights = [0.5, 0.3, 0.1] #arbitrary
+    total_low=float(total_low)
+    total_mid=float(total_mid)
+    total_high=float(total_high)
+    total_patt=float(total_patt)
+    
+    sync_sal_profile16 = [5,1,2,1, 3,1,2,1, 4,1,2,1, 3,1,2,1] #Original from Longuet-Higgen's Lee
+    true_sync_salience = [7,1,2,1, 3,1,2,1, 4,1,2,1, 5,1,2,1] # from tests in Palmer Krumhansl
+    sync_strength = [0,1,0,2, 0,1,0,3, 0,1,0,4, 0,1,0,6] # shift of -1 from P&K sync salience (and -1 to the values)
+
+    # 1 / density%  ---> (this is # of notes in channel / total notes that appear in pattern)
+    d_low = total_low/total_patt
+    d_mid = float(total_mid/total_patt)
+    d_high = float(total_high/total_patt)
+    # salience of individual notes in channel (step agnostic)
+    sal_low = 1/d_low
+    sal_mid = 1/d_mid
+    sal_high = 1/d_high
+    sum_sal = sal_low+sal_mid+sal_high
+    # normalized salience
+    norm_low = sal_low/sum_sal
+    norm_mid = sal_mid/sum_sal
+    norm_high = sal_high/sum_sal
+    
+    # Arbitrary Variables for Flattening
+    threshold = 0.5 #arbitrary
+    sync_threshold = 4 
+    sync_threshold_PK = 2
+    weights = [0.5, 0.3, 0.2] #arbitrary
+    mean = 0
 
     for i in range(len(patt)):
         if(patt_low[i]>0 or patt_mid[i]>0 or patt_high[i]>0): # there exists a note on the beat
             
-            # Naive reduction
+            # [1] Naive reduction
             mono_patterns[0][i] = 1
             mono_master[i].append(1)
 
-            # Weighted multi-hit channels w/ threshold of 1 
-            mono_patterns[1][i] = 2 if((patt_low[i]*weights[0] + patt_mid[i]*weights[1] + patt_high[i]*weights[2])>threshold) else 0
+            # [2] Weighted multi-hit channels w/ threshold of 0.5 
+            mono_patterns[1][i] = 2 if((patt_low[i]*weights[0] + patt_mid[i]*weights[1] + patt_high[i]*weights[2])>=threshold) else 0
             if mono_patterns[1][i] == 2:
                 mono_master[i].append(2)
 
-            # Syncopated Salience Profile
-            pl = 1 if patt_low[i]>0 else 0
-            pm = 1 if patt_mid[i]>0 else 0
-            ph = 1 if patt_high[i]>0 else 0
-            mono_patterns[2][i] = 3 if(((pl*sync_sal_profile16[i])+(pm*sync_sal_profile16[i])+(ph*sync_sal_profile16[i]))>sync_threshold) else 0
+            # [3] Low channel only
+            mono_patterns[2][i] = 3 if(patt_low[i]>0) else 0
             if mono_patterns[2][i] == 3:
                 mono_master[i].append(3)
 
+            # [5] Low channel or (mid+high)
+            mono_patterns[4][i] =  5 if(patt_low[i]>0 or (patt_mid[i]>0 and patt_high[i]>0)) else 0
+            if mono_patterns[4][i] == 5:
+                mono_master[i].append(5)
 
-        # Presence of Kick, Snare, or Clap (sounds that seem rhythmically reinforcing)    
+            # [6] Syncopated Salience Profile (Longuet-Higgens & Lee) (no multihit)
+            pl = 1 if patt_low[i]>0 else 0
+            pm = 1 if patt_mid[i]>0 else 0
+            ph = 1 if patt_high[i]>0 else 0
+            mono_patterns[5][i] = 6 if(((pl*sync_sal_profile16[i])+(pm*sync_sal_profile16[i])+(ph*sync_sal_profile16[i]))>=sync_threshold) else 0
+            if mono_patterns[5][i] == 6:
+                mono_master[i].append(6)
+            
+            # [7] Reported Salience Profile (Palmer & Krumhansl) (4/4 common rhythms)
+            mono_patterns[6][i] = 7 if(((patt_low[i]*true_sync_salience[i])+(patt_mid[i]*true_sync_salience[i])+(patt_high[i]*true_sync_salience[i]))>=sync_threshold_PK)else 0
+            if mono_patterns[6][i] == 7:
+                mono_master[i].append(7)
+            
+            # [8] Low, Mid without Low, High without Mid and Low ("Dominant Freq?")
+            mono_patterns[7][i] = 8 if(((patt_low[i]>0) or (patt_mid[i]>0 and patt_low[i]==0) or (patt_high>0 and patt_mid[i]==0 and patt_low[i]==0)))else 0
+            if mono_patterns[7][i] == 8:
+                mono_master[i].append(8)
+
+            # [9] Density & Sync Salience (DASS) Continous Output
+            low_val = norm_low*patt_low[i]
+            mid_val = norm_mid*patt_mid[i]
+            high_val = norm_high*patt_high[i]
+            if(i < len(patt)-1): # length - 1 as we use a idx+1
+                if(true_sync_salience[i]<true_sync_salience[i+1]): #note is in sync pos, and is syncopated
+                    if(patt_low[i+1]==0): 
+                        low_val += (low_val*sync_strength[i])
+                    if(patt_mid[i+1]==0): 
+                        mid_val += (mid_val*sync_strength[i])
+                    if(patt_high[i+1]==0): 
+                        high_val += (high_val*sync_strength[i])
+            mono_patterns[8][i] = (low_val+mid_val+high_val)
+            mean += mono_patterns[8][i]
+            if(mono_patterns[8][i]>=0.5):
+                mono_master[i].append(9)
+
+        # [4] Kick, Snare, or Clap (sounds that are rhythmically reinforcing)    
         for note in poly_patt[i]:
             if((note==36) or (note==38) or (note==39)):
                 mono_patterns[3][i] = 4
                 mono_master[i].append(4)
+                # This can produce duplicates in the mono master, but don't seem to causing any effect on pd
 
-    # mono patterns = array with len 16 containing monochannels
-    return mono_master
+    print(["{:0.2f}".format(x) for x in mono_patterns[8]])
+    mean /= 16
+    print(mean)
+    return mono_master, mono_patterns[8]
 
 # UDP Definition
 UDP_IP = "127.0.0.1"
@@ -310,13 +385,12 @@ print("------------------------------")
 print("Connecting to "+UDP_IP+":"+str(UDP_PORT))
 print("")
 
-def to_PureData(pattern_list):
+def to_PureData(pattern_list, velocity_array):
     patt = pattern_list
-    print(patt)
     pd=[]
     for i in range(len(pattern_list)):
         patt = pattern_list[i]
-    print(patt)
+    #print(patt)
     name = patt[0]
     pd = patt[1:]
     #print(pd)
@@ -326,10 +400,12 @@ def to_PureData(pattern_list):
             j_16 = j%16
             idx = str(j_16)
             n = str(i)
-            data = (idx+" "+n+" "+str(name))
+            data = (idx+" "+n+" 1 "+str(name))
             sockt.sendto(str(data), (UDP_IP, UDP_PORT))
             #print("sent: "+str(data))
             time.sleep(t)
+        data_vel = str(int(j%16))+" 10 "+str(velocity_array[int(j%16)])+" "+str(name)
+        sockt.sendto(str(data_vel), (UDP_IP, UDP_PORT))
     print("Pattern sent: "+str(name))
 
     return pd
@@ -341,15 +417,15 @@ dir = os.getcwd()+"/Patterns/"
 dir_list = os.listdir(dir)
 for item in dir_list:
     print(item)
-filename = raw_input("Type the pattern you want to explore:")
+filename = raw_input("Type the pattern you want to explore:") # py2.7 has raw_input()
 if filename.endswith(".txt")==0:
     filename = filename+".txt"
 filename = dir+filename
 size=16
 save_bool=False
 #pattern_list = save_and_extract_patternlist(filename, size, save_bool)
-pattern_list = extract_pattern(filename, size)
-pd = to_PureData(pattern_list)
+pattern_list, velocity_dens_sync = extract_pattern(filename, size)
+pd = to_PureData(pattern_list,velocity_dens_sync)
 print("------------------------------")
 print("")
 
