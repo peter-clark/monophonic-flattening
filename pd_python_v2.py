@@ -214,6 +214,10 @@ def monophonic_reductions(patt, poly_patt):
     mean_dm=float(0) # density and metric salience
     mean_all=float(0) # all three
 
+    # max in pattern for normalization
+    maxes = [0.0, 0.0, 0.0, 0.0]
+    norm_means = [0.0, 0.0, 0.0, 0.0]
+
     for i in range(len(patt)):
         if(patt_low[i]>0 or patt_mid[i]>0 or patt_high[i]>0): # there exists a note on the beat
             
@@ -234,6 +238,7 @@ def monophonic_reductions(patt, poly_patt):
             mono_patterns[0][i] = low_val+mid_val+high_val
             velocity_patterns[0][i] = low_val+mid_val+high_val
             mean_d += mono_patterns[0][i]
+            maxes[0] = is_Max(maxes[0],velocity_patterns[0][i])
 
             # [2] Normalized Note Salience and Syncopation Strength
             if(i < len(patt)-1): # length - 1 as we use a idx+1
@@ -255,6 +260,7 @@ def monophonic_reductions(patt, poly_patt):
             mono_patterns[1][i] = low_val_ds+mid_val_ds+high_val_ds
             velocity_patterns[1][i] = low_val_ds+mid_val_ds+high_val_ds
             mean_ds += mono_patterns[1][i]
+            maxes[1] = is_Max(maxes[1],velocity_patterns[1][i])
 
             # [3] Normalized Note Salience and Metrical Salience (Palmer&Krumhansl,1990)
             if(i < len(patt)-1): # length - 1 as we use a idx+1
@@ -268,6 +274,7 @@ def monophonic_reductions(patt, poly_patt):
             mono_patterns[2][i] = low_val_dm+mid_val_dm+high_val_dm
             velocity_patterns[2][i] = low_val_dm+mid_val_dm+high_val_dm
             mean_dm += mono_patterns[2][i]
+            maxes[2] = is_Max(maxes[2],velocity_patterns[2][i])
 
             # [4] Normalized Note Salience, Metric Salience, Syncopation Strength
             low_val_all = low_val_dm+low_val_ds
@@ -276,13 +283,17 @@ def monophonic_reductions(patt, poly_patt):
             mono_patterns[3][i] = low_val_all+mid_val_all+high_val_all
             velocity_patterns[3][i] = low_val_all+mid_val_all+high_val_all
             mean_all += mono_patterns[3][i]
+            maxes[3] = is_Max(maxes[3],velocity_patterns[3][i])
 
 
     mean_d /=16
     mean_ds /=16
     mean_dm /=16
     mean_all /=16
-    print(str(mean_d) + " "+ str(mean_ds) + " "+ str(mean_dm) + " "+ str(mean_all))
+    #print(str(mean_d) + " "+ str(mean_ds) + " "+ str(mean_dm) + " "+ str(mean_all))
+
+    velocity_patterns, norm_means = normalize(velocity_patterns,maxes)
+
     
     for note in range(size):
         mono_patterns[0][note] = 1 if(mono_patterns[0][note]>=mean_d) else 0 # send to channel 1 mono discrete
@@ -297,22 +308,49 @@ def monophonic_reductions(patt, poly_patt):
             mono_master[note].append(3)
         if(mono_patterns[3][note]==4):
             mono_master[note].append(4)
+        mono_master[note].append(9)
 
     print("1:----------------------------------------------")
     print(["{:0.2f}".format(x) for x in velocity_patterns[0]])
     print([x for x in mono_patterns[0]])
+    print("Mean: "+str(norm_means[0]))
     print("2:----------------------------------------------")
     print(["{:0.2f}".format(x) for x in velocity_patterns[1]])
     print([x for x in mono_patterns[1]])
+    print("Mean: "+str(norm_means[1]))
     print("3:----------------------------------------------")
     print(["{:0.2f}".format(x) for x in velocity_patterns[2]])
     print([x for x in mono_patterns[2]])
+    print("Mean: "+str(norm_means[2]))
     print("4:----------------------------------------------")
     print(["{:0.2f}".format(x) for x in velocity_patterns[3]])
     print([x for x in mono_patterns[3]])
+    print("Mean: "+str(norm_means[3]))
     print("----------------------------------------------")
 
     return mono_master, velocity_patterns
+
+def is_Max(current_max_num, num):
+    return num if(num>current_max_num)else current_max_num
+
+def normalize(velocity_patterns,maxes):
+
+    velocity_patterns_norm = velocity_patterns
+    means_norm = [0.0, 0.0, 0.0, 0.0]
+    for i in range(size):
+        velocity_patterns_norm[0][i] = velocity_patterns[0][i] / maxes[0]
+        means_norm[0] += velocity_patterns_norm[0][i]
+        velocity_patterns_norm[1][i] = velocity_patterns[1][i] / maxes[1]
+        means_norm[1] += velocity_patterns_norm[1][i]
+        velocity_patterns_norm[2][i] = velocity_patterns[2][i] / maxes[2]
+        means_norm[2] += velocity_patterns_norm[2][i]
+        velocity_patterns_norm[3][i] = velocity_patterns[3][i] / maxes[3]
+        means_norm[3] += velocity_patterns_norm[3][i]
+    for i in range(4):
+        means_norm[i] /= 16
+
+    return velocity_patterns_norm, means_norm
+
 
 # UDP Definition
 UDP_IP = "127.0.0.1"
@@ -343,8 +381,6 @@ def to_PureData(pattern_list, velocity_array):
             sockt.sendto(str(data), (UDP_IP, UDP_PORT))
             #print("sent: "+str(data))
             time.sleep(t)
-        # fix iteration for 4 channels of velocity
-        # FIX MEE
     vel_channel=5
     for j, line in enumerate(velocity_array):
         #print(j)
