@@ -293,13 +293,12 @@ def monophonic_reductions(patt, poly_patt):
     #print(str(mean_d) + " "+ str(mean_ds) + " "+ str(mean_dm) + " "+ str(mean_all))
 
     velocity_patterns, norm_means = normalize(velocity_patterns,maxes)
-
     
     for note in range(size):
-        mono_patterns[0][note] = 1 if(mono_patterns[0][note]>=mean_d) else 0 # send to channel 1 mono discrete
-        mono_patterns[1][note] = 2 if(mono_patterns[1][note]>=mean_ds) else 0 # send to channel 2 mono discrete
-        mono_patterns[2][note] = 3 if(mono_patterns[2][note]>=mean_dm) else 0 # send to channel 3 mono discrete
-        mono_patterns[3][note] = 4 if(mono_patterns[3][note]>=mean_all) else 0 # send to channel 4 mono discrete
+        mono_patterns[0][note] = 1 if(velocity_patterns[0][note]>=norm_means[0]) else 0 # send to channel 1 mono discrete
+        mono_patterns[1][note] = 2 if(velocity_patterns[1][note]>=norm_means[1]) else 0 # send to channel 2 mono discrete
+        mono_patterns[2][note] = 3 if(velocity_patterns[2][note]>=norm_means[2]) else 0 # send to channel 3 mono discrete
+        mono_patterns[3][note] = 4 if(velocity_patterns[3][note]>=norm_means[3]) else 0 # send to channel 4 mono discrete
         if(mono_patterns[0][note]==1):
             mono_master[note].append(1)
         if(mono_patterns[1][note]==2):
@@ -313,7 +312,7 @@ def monophonic_reductions(patt, poly_patt):
     print("1:----------------------------------------------")
     print(["{:0.2f}".format(x) for x in velocity_patterns[0]])
     print([x for x in mono_patterns[0]])
-    print("Mean: "+str(norm_means[0]))
+    print("NormMean: "+str(norm_means[0]))
     print("2:----------------------------------------------")
     print(["{:0.2f}".format(x) for x in velocity_patterns[1]])
     print([x for x in mono_patterns[1]])
@@ -321,7 +320,7 @@ def monophonic_reductions(patt, poly_patt):
     print("3:----------------------------------------------")
     print(["{:0.2f}".format(x) for x in velocity_patterns[2]])
     print([x for x in mono_patterns[2]])
-    print("Mean: "+str(norm_means[2]))
+    print("NormMean: "+str(norm_means[2]))
     print("4:----------------------------------------------")
     print(["{:0.2f}".format(x) for x in velocity_patterns[3]])
     print([x for x in mono_patterns[3]])
