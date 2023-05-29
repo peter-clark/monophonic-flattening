@@ -398,11 +398,13 @@ def to_PureData(pattern_list, velocity_array):
 
 # ---------------------------------------------------------------------- #
 # Main Function
-
+'''
 dir = os.getcwd()+"/Patterns/"
 dir_list = os.listdir(dir)
 for item in dir_list:
     print(item)
+'''
+
 filename = raw_input("Type the pattern you want to explore:") # py2.7 has raw_input()
 if filename.endswith(".txt")==0:
     filename = filename+".txt"
