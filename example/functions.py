@@ -352,7 +352,7 @@ def isinside(s,pos, tri):
 	a2=triangarea(pos[tri[0]],pos[tri[1]],s)
 	a3=triangarea(pos[tri[1]],pos[tri[2]],s)
 	a4=triangarea(pos[tri[0]],pos[tri[2]],s)
-	if np.abs(a1-(a2+a3+a4))<0.000001: #1e-6
+	if np.abs(a1-(a2+a3+a4))<0.000001: # Low value to fix float issues
 		inside = 1
 	else:
 		inside = 0

@@ -1,11 +1,6 @@
-import os
-import sys
 import numpy as np
-from natsort import natsorted
-import functions as fun
 import descriptors as desc
 import flatten as flatten
-import neuralnetwork as NN
 import time
 import socket
 import re
@@ -32,7 +27,7 @@ def UDP_init():
     UDP_PORT = 1337
     sockt = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # Internet and UDP
     #print("------------------------------")
-    print("Connecting to "+UDP_IP+":"+str(UDP_PORT))
+    #print("Connecting to "+UDP_IP+":"+str(UDP_PORT))
     #print("")
     return sockt
 
@@ -50,6 +45,7 @@ def send_poly_patt(eight_pattern, name):
             sockt.sendto(str(data).encode(), (UDP_IP,UDP_PORT))
             time.sleep(0.01)
     sockt.close()
+
 
 def send_poly_patt_predicted(eight_pattern, name):
     sockt=UDP_init()

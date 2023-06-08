@@ -27,18 +27,20 @@ pos = fun.d_mtx_2_mds(d)
 
 # create delaunay triangulations
 triangles = fun.create_delaunay_triangles(pos) #create triangles
-
+print(f" Triangles: {len(triangles)} {len(triangles[0])}")
+print(triangles)
 # define the number of cols and rows of the space
 hash_density = 2
 
 # hash the space for faster searches. groups triangles in hash categories
 hashed_triangles = fun.hash_triangles(pos, triangles, hash_density) # 2 means divide the space in 2 cols and 2 rows
-
+print(f"HASH TRIANGLES {len(hashed_triangles)} {len(hashed_triangles[0])}")
+print(hashed_triangles)
 # search the rhythm space
 #########################
 p = np.random.randint(0,1513) # get random pattern
 print(p)
-p = 694
+
 
 input_patt = all_pattlists[p]
 patt_name = all_names[p]
@@ -74,10 +76,9 @@ print(f"searched for pattern/predicted coordinates: , {coords}-{pred_coords} -->
 output_patt = fun.position2pattern(pred_coords, all_pattlists,  pos, triangles, hashed_triangles, hash_density)
 input_patt = puredata.parse_8(input_patt)
 output_patt = puredata.parse_8(output_patt)
-output_patt *= 2
 print(f"searched for pattern/predicted coordinates: , {coords}-{pred_coords} --> {puredata.EuclideanDistance(coords,pred_coords)}")
 #print("original pattern:", input_patt)
-print("obtained pattern:", output_patt[:15])
+print("obtained pattern:", output_patt)
 
 puredata.send_poly_patt(input_patt,patt_name)
 puredata.send_flat_patts(input_flat)
