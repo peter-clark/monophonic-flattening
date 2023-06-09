@@ -129,7 +129,7 @@
 #X connect 9 0 10 0;
 #X connect 12 0 7 0;
 #X connect 12 2 1 0;
-#X restore 26 565 pd from_py;
+#X restore 13 557 pd from_py;
 #X floatatom 138 93 5 0 0 1 BPM bpm-s - 0;
 #N canvas 20 83 683 441 sequencer 0;
 #X obj 96 30 inlet;
