@@ -56,7 +56,10 @@
 #X connect 0 0 1 0;
 #X connect 1 0 2 0;
 #X connect 2 0 5 0;
+<<<<<<< HEAD
 #X connect 2 0 9 0;
+=======
+>>>>>>> 45c1d490a946570efe98c043f311165041d7de08
 #X connect 3 0 4 0;
 #X connect 4 0 9 0;
 #X connect 5 0 9 0;

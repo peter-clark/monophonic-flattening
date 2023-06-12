@@ -183,6 +183,23 @@ while _quit[0] is False:
 
 
 
+    # ADD A SAVE FUNCTIONALITY
+    # Tapped pattern
+    # Predicted coordinates
+    # Input pattern
+    # Name of pattern
+    # Date / Time
+
+
+    ## Save HASH stuff into pickle files
+    # don't have to retrain everything
+    # recalculate
+
+
+    ## FIX delaunay interpolation stuff wherepoint is outside any known triangles
+
+
+
 # Example send: 
 """ 
 send_to_pd.send_message("/tap/velocity",velocity)
