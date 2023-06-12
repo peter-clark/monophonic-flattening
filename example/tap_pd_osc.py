@@ -9,6 +9,7 @@ import neuralnetwork as NN
 import to_pd as puredata
 import pandas as pd
 import time
+import pickle
 import socket
 import re
 
@@ -18,7 +19,20 @@ from pythonosc.dispatcher import Dispatcher
 
 ###----------------------------------------------------------------###
 ## PATTERN INIT + SELECTION
-all_pattlists, all_names = fun.rootfolder2pattlists("midi/","allinstruments") # Parse all MIDI patterns in folders
+pickle_dir = os.getcwd()+"/data/"
+
+# Load patterns from pickle file
+patt_file = open(pickle_dir+"patterns.pkl", 'rb')
+all_pattlists = pickle.load(patt_file)
+patt_file.close()
+print(len(all_pattlists))
+
+# Load names from pickle file
+name_file = open(pickle_dir+"pattern_names.pkl","rb")
+all_names = pickle.load(name_file)
+name_file.close()
+print(len(all_names))
+#all_pattlists, all_names = fun.rootfolder2pattlists("midi/","allinstruments") # Parse all MIDI patterns in folders
 pttrn = 0
 pttrn = input("Select pattern index [0-1512]: ")# Prompt to select pattern
 patt_name = all_names[int(pttrn)]
@@ -37,7 +51,6 @@ tappern = [0.0 for x in range(16)] # Tapped Pattern
 """ TODO:
 * Define more handlers for knobs (density, etc.).
 * Figure out message type for each input from PD
-* Reconfig PureData to receive all pattern inputs from OSC?
 """
 ## OSC IP / PORT
 IP = '127.0.0.1'
@@ -51,17 +64,25 @@ model_dir = os.getcwd()+"/models/continuous1.pt"
 model = NN.build_model()
 model.load_state_dict(NN.torch.load(model_dir))
 
-## LOAD EMBEDDING POSITIONS
-coords_dir = os.getcwd()+"/embeddings/mds.csv"
-c = pd.read_csv(coords_dir)
-pos = [c.X, c.Y]
-d = desc.lopl2descriptors(all_pattlists) 
-pos2= fun.d_mtx_2_mds(d)
+## LOAD DESCRIPTORS & EMBEDDING POSITIONS
+descriptor_file = open(pickle_dir+"descriptors.pkl","rb")
+d = pickle.load(descriptor_file)
+descriptor_file.close()
+
+mds_pos_file = open(pickle_dir+"mds_pos.pkl", 'rb')
+mds_pos = pickle.load(mds_pos_file) 
+mds_pos_file.close()
 
 ## LOAD TRIANGLES, HASH_TRIANGLES, HASH_DENSITY
-triangles = fun.create_delaunay_triangles(pos2) #create triangles
+triangles_file = open(pickle_dir+"triangles.pkl", 'rb')
+triangles = pickle.load(triangles_file) 
+triangles_file.close()
+
 hash_density = 2 # number of col, row in space
-hashed_triangles = fun.hash_triangles(pos2, triangles, hash_density) # 2 means divide the space in 2 cols and 2 rows
+
+hashed_triangles_file = open(pickle_dir+"hashed_triangles.pkl", 'rb')
+hashed_triangles = pickle.load(hashed_triangles_file) 
+hashed_triangles_file.close()
 
 # Create instance of sender class
 send_to_pd = SimpleUDPClient(IP, SEND_PORT)
@@ -117,9 +138,11 @@ def pattern_to_pd(pattern, name, udp, type=0):
     if type==1:
         for step in range(len(pattern)):
             for note in range(len(pattern[step])):
-                udp.send_message("/pattern/channel",(pattern[step][note]*2))
-                udp.send_message("/pattern/step",step)
-                udp.send_message("/pattern/velocity",1)
+                if pattern[step][note]!=0:
+                    n = desc.GM_dict[int(pattern[step][note])][5]
+                    udp.send_message("/pattern/channel",(n*2))
+                    udp.send_message("/pattern/step",step)
+                    udp.send_message("/pattern/velocity",1)
         print("Sent predicted pattern.")
     if type==2:
         #d1->1, d2->2, c1->5, c2->6, all->9
@@ -153,7 +176,8 @@ while _quit[0] is False:
      print(_predict)
      if _predict:
         pred_coords = model(NN.torch.Tensor(tappern).float()).detach().numpy()
-        output_patt = fun.position2pattern(pred_coords, all_pattlists,  pos2, triangles, hashed_triangles, hash_density)
+        output_patt = fun.position2pattern(pred_coords, all_pattlists,  mds_pos, triangles, hashed_triangles, hash_density)
+        print(f"Predicted Pattern: {output_patt}")
         pattern_to_pd(output_patt, patt_name, send_to_pd, type=1)
         _predict=False
 

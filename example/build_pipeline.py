@@ -7,6 +7,7 @@ import flatten as flatten
 import neuralnetwork as NN
 import time
 import csv
+import pickle
 s = time.perf_counter()
 
 ## Initalize variables
