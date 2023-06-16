@@ -12,6 +12,8 @@ import time
 import pickle
 import socket
 import re
+import datetime
+import pytz
 
 from pythonosc.udp_client import SimpleUDPClient
 from pythonosc.osc_server import BlockingOSCUDPServer
@@ -47,6 +49,12 @@ for i in range(len(flatterns)):
 ## Empty array for tapped output to send to prediction
 tappern = [0.0 for x in range(16)] # Tapped Pattern
 
+## Empty array for saving results of testtapping
+test_results = [[0 for x in range(32)] for y in range(3)] # results of three tap trials (consistency)
+
+## Empty array for results of save
+save_line = [0.0 for x in range(85)]
+
 ###----------------------------------------------------------------###
 """ TODO:
 * Define more handlers for knobs (density, etc.).
@@ -58,6 +66,7 @@ SEND_PORT = 1338
 RECEIVE_PORT = 1339
 _quit=[False]
 _predict=False
+_save=False
 
 ## INITIALIZE MODEL FOR PREDICTION
 model_dir = os.getcwd()+"/models/continuous1.pt"
@@ -91,16 +100,40 @@ dispatcher = Dispatcher()
 
 ## Define handlers for messages
 def tap_message_handler(address, *args): # /tap
+    print(address)
+    if address == "/tap/predict":
+        global _predict
+        _predict=True
+        print("Predicting...")
     for idx in range(len(args)):
         tappern[idx]=(args[idx]/127) if args[idx]>=0.0 else 0.0
     print(f"Tapped Pattern: {tappern}")
-    global _predict
-    _predict=True
-    print(_predict)
 
+def save_data_message_handler(address, *args): # save information from puredata
+    # 1. DATE
+    today = datetime.datetime.now(pytz.timezone("Europe/Madrid"))
+    date = today.date()
+    save_line[0] = date
+    # 2. TIME
+    time = today.strftime("%H:%M:%S")
+    save_line[1] = time
+    # 3. INPUT PATT
+    save_line[2] = pttrn
+    # 4. INPUT PATT NAME
+    save_line[3] = patt_name
+    # 5-20. Tapped Pattern [x16]
+    for idx in range(len(tappern)):
+        save_line[4+idx] = tappern[idx]
+        save_line[20+idx] = flatterns[0][idx] # c1
+        save_line[36+idx] = flatterns[1][idx] # d1
+        save_line[52+idx] = flatterns[2][idx] # c2
+        save_line[68+idx] = flatterns[3][idx] # d2
+    print(save_line[20:36])
+    print(save_line)
+    # SAVE TO CSV ###### 
 
-def get_prediction_message_handler(address, *args): # /get_prediction (bool)
-    print("Something also happens here.")
+def test_results_message_handler(address, *args): # /get_prediction (bool)
+    print("Something also happens here.") 
 
 def joystick_message_handler(address, *args): # /joystick (xy)
      print("yadda yadda.")
@@ -111,7 +144,8 @@ def quit_message_handler(address, * args): # /quit
 
 # Pass handlers to dispatcher
 dispatcher.map("/tap*", tap_message_handler)
-dispatcher.map("/get_prediction*", get_prediction_message_handler)
+dispatcher.map("/save*", save_data_message_handler)
+dispatcher.map("/test_results*", test_results_message_handler)
 dispatcher.map("/joystick*", joystick_message_handler)
 dispatcher.map("/quit*", quit_message_handler)
 
@@ -188,13 +222,7 @@ while _quit[0] is False:
     # Predicted coordinates
     # Input pattern
     # Name of pattern
-    # Date / Time
-
-
-    ## Save HASH stuff into pickle files
-    # don't have to retrain everything
-    # recalculate
-
+    # Date / Time 
 
     ## FIX delaunay interpolation stuff wherepoint is outside any known triangles
 
