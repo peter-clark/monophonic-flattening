@@ -9,6 +9,7 @@ import neuralnetwork as NN
 import to_pd as puredata
 import pandas as pd
 import time
+import csv
 import pickle
 import socket
 import re
@@ -27,16 +28,14 @@ pickle_dir = os.getcwd()+"/data/"
 patt_file = open(pickle_dir+"patterns.pkl", 'rb')
 all_pattlists = pickle.load(patt_file)
 patt_file.close()
-print(len(all_pattlists))
 
 # Load names from pickle file
 name_file = open(pickle_dir+"pattern_names.pkl","rb")
 all_names = pickle.load(name_file)
 name_file.close()
-print(len(all_names))
 #all_pattlists, all_names = fun.rootfolder2pattlists("midi/","allinstruments") # Parse all MIDI patterns in folders
 pttrn = 0
-pttrn = input("Select pattern index [0-1512]: ")# Prompt to select pattern
+pttrn = input(f"Select pattern index [0-{len(all_pattlists)}]: ")# Prompt to select pattern
 patt_name = all_names[int(pttrn)]
 input_patt = all_pattlists[int(pttrn)]
 
@@ -51,9 +50,12 @@ tappern = [0.0 for x in range(16)] # Tapped Pattern
 
 ## Empty array for saving results of testtapping
 test_results = [[0 for x in range(32)] for y in range(3)] # results of three tap trials (consistency)
+save_test_results = [0.0 for x in range((3+(32)))] # save line for csv (date time test# + test results)
+results_file = os.getcwd()+"/results/taptest.csv"
 
 ## Empty array for results of save
 save_line = [0.0 for x in range(85)]
+tap_file = os.getcwd()+"/results/tapexplore.csv"
 
 ###----------------------------------------------------------------###
 """ TODO:
@@ -128,12 +130,33 @@ def save_data_message_handler(address, *args): # save information from puredata
         save_line[36+idx] = flatterns[1][idx] # d1
         save_line[52+idx] = flatterns[2][idx] # c2
         save_line[68+idx] = flatterns[3][idx] # d2
-    print(save_line[20:36])
-    print(save_line)
+    print(f"Tapped: {save_line[4:19]}")
+    print(f"CONT1 : {save_line[20:35]}")
+    print(f"CONT2 : {save_line[52:67]}")
+    with open(tap_file,'a') as results: 
+            wr = csv.writer(results)
+            wr.writerow(save_line)
+            results.close()
     # SAVE TO CSV ###### 
 
 def test_results_message_handler(address, *args): # /get_prediction (bool)
-    print("Something also happens here.") 
+    today = datetime.datetime.now(pytz.timezone("Europe/Madrid"))
+    date = today.date()
+    save_test_results[0]=date
+    time = today.strftime("%H:%M:%S")
+    save_test_results[1]=time
+    if(address=="/test_results/testnum"):
+        save_test_results[2]=int(args[0])
+        print(f"args {args[0]}")
+    elif(save_test_results[2]>0):
+        for i in range(len(args)):
+            save_test_results[i+3]=args[i]
+        with open(results_file,'a') as results: 
+            wr = csv.writer(results)
+            wr.writerow(save_test_results)
+            results.close()
+    if(save_test_results[2]==3):
+        print("Saved Tap-Test Results to CSV.")
 
 def joystick_message_handler(address, *args): # /joystick (xy)
      print("yadda yadda.")
@@ -207,7 +230,6 @@ pattern_to_pd(flatterns, patt_name, send_to_pd, type=2)
 
 while _quit[0] is False:
      server.handle_request()
-     print(_predict)
      if _predict:
         pred_coords = model(NN.torch.Tensor(tappern).float()).detach().numpy()
         output_patt = fun.position2pattern(pred_coords, all_pattlists,  mds_pos, triangles, hashed_triangles, hash_density)
