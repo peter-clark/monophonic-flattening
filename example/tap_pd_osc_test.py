@@ -22,30 +22,6 @@ from pythonosc.osc_server import BlockingOSCUDPServer
 from pythonosc.dispatcher import Dispatcher
 
 ###----------------------------------------------------------------###
-## PATTERN INIT + SELECTION
-pickle_dir = os.getcwd()+"/data/"
-
-# Load patterns from pickle file
-patt_file = open(pickle_dir+"patterns.pkl", 'rb')
-all_pattlists = pickle.load(patt_file)
-patt_file.close()
-
-# Load names from pickle file
-name_file = open(pickle_dir+"pattern_names.pkl","rb")
-all_names = pickle.load(name_file)
-name_file.close()
-#all_pattlists, all_names = fun.rootfolder2pattlists("midi/","allinstruments") # Parse all MIDI patterns in folders
-pttrn = 0
-pttrn = input(f"Select pattern index [0-{len(all_pattlists)}]: ")# Prompt to select pattern
-patt_name = all_names[int(pttrn)]
-input_patt = all_pattlists[int(pttrn)]
-
-# Flatten pattern and organize
-input_flat = flatten.flat_from_patt(input_patt)
-flatterns = [[] for y in range(4)]
-for i in range(len(flatterns)):
-        flatterns[i] = input_flat[i]
-
 ## Empty array for tapped output to send to prediction
 tappern = [0.0 for x in range(16)] # Tapped Pattern
 
@@ -58,11 +34,6 @@ results_file = os.getcwd()+"/results/taptest.csv"
 save_line = [0.0 for x in range(85)]
 tap_file = os.getcwd()+"/results/tapexplore.csv"
 
-###----------------------------------------------------------------###
-""" TODO:
-* Define more handlers for knobs (density, etc.).
-* Figure out message type for each input from PD
-"""
 ## OSC IP / PORT
 IP = '127.0.0.1'
 SEND_PORT = 1338
@@ -77,6 +48,9 @@ model_dir = os.getcwd()+"/models/continuous1.pt"
 model = NN.build_model()
 model.load_state_dict(NN.torch.load(model_dir))
 
+## PATTERN INIT + SELECTION
+pickle_dir = os.getcwd()+"/data/"
+
 ## LOAD DESCRIPTORS & EMBEDDING POSITIONS
 descriptor_file = open(pickle_dir+"descriptors.pkl","rb")
 d = pickle.load(descriptor_file)
@@ -86,9 +60,41 @@ mds_pos_file = open(pickle_dir+"mds_pos.pkl", 'rb')
 mds_pos = pickle.load(mds_pos_file) 
 mds_pos_file.close()
 sections=[[]for x in range(16)] 
-pattern_idxs = [[]for x in range(18)]
+pattern_idxs = [[]for x in range(16)]
 tf.make_pos_grid(mds_pos,sections,pattern_idxs, False) # bool is show plot
 tf.print_sections(sections)
+
+# Load patterns from pickle file
+patt_file = open(pickle_dir+"patterns.pkl", 'rb')
+all_pattlists = pickle.load(patt_file)
+patt_file.close()
+
+# Load names from pickle file
+name_file = open(pickle_dir+"pattern_names.pkl","rb")
+all_names = pickle.load(name_file)
+name_file.close()
+
+# Select pattern from sections
+test_patterns = [0 for x in range(len(pattern_idxs)+2)]
+for section in range(len(pattern_idxs)):
+    r = np.random.randint(0, len(pattern_idxs[section]))
+    print(f"section:{section} r:{r} len:{len(pattern_idxs[section])}")
+    test_patterns[section]=pattern_idxs[section][r]
+print(test_patterns)
+
+next_patt = test_patterns[0]
+patt_name = all_names[int(next_patt)]
+input_patt = all_pattlists[int(next_patt)]
+
+def get_flat(pattern):
+    # Flatten pattern and organize
+    input_flat = flatten.flat_from_patt(input_patt)
+    flatterns = [[] for y in range(4)]
+    for i in range(len(flatterns)):
+            flatterns[i] = input_flat[i]
+    return flatterns
+
+flatterns = get_flat(input_patt)
 
 ## LOAD TRIANGLES, HASH_TRIANGLES, HASH_DENSITY
 triangles_file = open(pickle_dir+"triangles.pkl", 'rb')
@@ -126,7 +132,7 @@ def save_data_message_handler(address, *args): # save information from puredata
     time = today.strftime("%H:%M:%S")
     save_line[1] = time
     # 3. INPUT PATT
-    save_line[2] = pttrn
+    save_line[2] = next_patt
     # 4. INPUT PATT NAME
     save_line[3] = patt_name
     # 5-20. Tapped Pattern [x16]
@@ -136,9 +142,6 @@ def save_data_message_handler(address, *args): # save information from puredata
         save_line[36+idx] = flatterns[1][idx] # d1
         save_line[52+idx] = flatterns[2][idx] # c2
         save_line[68+idx] = flatterns[3][idx] # d2
-    print(f"Tapped: {save_line[4:19]}")
-    print(f"CONT1 : {save_line[20:35]}")
-    print(f"CONT2 : {save_line[52:67]}")
     with open(tap_file,'a') as results: 
             wr = csv.writer(results)
             wr.writerow(save_line)
@@ -168,6 +171,7 @@ def test_message_handler(address, *args):
     if address == "/test/next_pattern":
         global _next_pattern 
         _next_pattern = True
+        print("Going next pattern...")
 
 
 def joystick_message_handler(address, *args): # /joystick (xy)
@@ -184,6 +188,7 @@ def quit_message_handler(address, * args): # /quit
 dispatcher.map("/tap*", tap_message_handler)
 dispatcher.map("/save*", save_data_message_handler)
 dispatcher.map("/test_results*", test_results_message_handler)
+dispatcher.map("/test*", test_message_handler)
 dispatcher.map("/joystick*", joystick_message_handler)
 dispatcher.map("/quit*", quit_message_handler)
 
@@ -239,10 +244,11 @@ def pattern_to_pd(pattern, name, udp, type=0):
 
 ## PUREDATA INIT
 # Parse and send selected pattern
-input_patt = puredata.parse_8(input_patt) # edit this to be done in send function, not separate file
-pattern_to_pd(input_patt, patt_name, send_to_pd, type=0)
-pattern_to_pd(flatterns, patt_name, send_to_pd, type=2)
+#input_patt = puredata.parse_8(input_patt) # edit this to be done in send function, not separate file
+#pattern_to_pd(input_patt, patt_name, send_to_pd, type=0)
+#pattern_to_pd(flatterns, patt_name, send_to_pd, type=2)
 
+current_test = 0
 while _quit[0] is False:
     server.handle_request()
     if _predict:
@@ -254,16 +260,17 @@ while _quit[0] is False:
 
     if _next_pattern:
         # send next pattern in list to puredata
-
+        if(current_test>len(test_patterns)-1):
+            print("Testing is over. \n \nThank you for participating.")
+            _next_pattern = False
+            break
+        next_patt = int(test_patterns[current_test])
+        input_patt = all_pattlists[next_patt]
+        patt_name = all_names[next_patt]
+        flatterns = get_flat(input_patt)
+        input_patt = puredata.parse_8(input_patt) # edit this to be done in send function, not separate file
+        pattern_to_pd(input_patt, patt_name, send_to_pd, type=0)
+        current_test+=1
         _next_pattern = False
 
-
     ## FIX delaunay interpolation stuff wherepoint is outside any known triangles
-
-
-
-# Example send: 
-""" 
-send_to_pd.send_message("/tap/velocity",velocity)
- """
-
