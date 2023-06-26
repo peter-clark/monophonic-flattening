@@ -31,7 +31,7 @@ save_test_results = [0.0 for x in range((3+(32)))] # save line for csv (date tim
 results_file = os.getcwd()+"/results/taptest.csv"
 
 ## Empty array for results of save
-save_line = [0.0 for x in range(85)]
+save_line = [0.0 for x in range(86)]
 tap_file = os.getcwd()+"/results/tapexplore.csv"
 
 ## OSC IP / PORT
@@ -62,7 +62,7 @@ mds_pos_file.close()
 sections=[[]for x in range(16)] 
 pattern_idxs = [[]for x in range(16)]
 tf.make_pos_grid(mds_pos,sections,pattern_idxs, False) # bool is show plot
-tf.print_sections(sections)
+# tf.print_sections(sections)
 
 # Load patterns from pickle file
 patt_file = open(pickle_dir+"patterns.pkl", 'rb')
@@ -74,12 +74,43 @@ name_file = open(pickle_dir+"pattern_names.pkl","rb")
 all_names = pickle.load(name_file)
 name_file.close()
 
+
+
+
+
 # Select pattern from sections
 test_patterns = [0 for x in range(len(pattern_idxs)+2)]
-for section in range(len(pattern_idxs)):
-    r = np.random.randint(0, len(pattern_idxs[section]))
-    print(f"section:{section} r:{r} len:{len(pattern_idxs[section])}")
-    test_patterns[section]=pattern_idxs[section][r]
+""" FOR GETTING PATTERNS FROM A SECTION
+t_i=0
+for i in range(len(pattern_idxs[11])):
+    if sections[11][i][0]>0.8 and sections[11][i][1]<0.705:
+        print(f"12: {pattern_idxs[11][i]}")
+        print(f"12: {sections[11][i]}")
+        if t_i == len(test_patterns):
+            break
+        test_patterns[t_i]=pattern_idxs[11][i]
+        t_i+=1
+# ADD TWO CONTROL 
+i = np.random.randint(0,16)
+test_patterns[16] = test_patterns[i]
+j = np.random.randint(0,16)
+while j==i:
+    j = np.random.randint(0,16)
+test_patterns[17] = test_patterns[j]
+"""
+
+test_patterns = [
+    894, 423, 1367, 249, 
+    939, 427, 590, 143,
+    912, 678, 1355, 580,
+    1043, 673, 1359, 736,
+    678, 1355
+    ]
+np.random.shuffle(test_patterns)
+for i in range(len(test_patterns)-1):
+    if test_patterns[i]==test_patterns[i+1]:
+        np.random.shuffle(test_patterns)
+        break
 print(test_patterns)
 
 next_patt = test_patterns[0]
@@ -121,7 +152,7 @@ def tap_message_handler(address, *args): # /tap
         print("Predicting...")
     for idx in range(len(args)):
         tappern[idx]=(args[idx]/127) if args[idx]>=0.0 else 0.0
-    print(f"Tapped Pattern: {tappern}")
+    #print(f"Tapped Pattern: {tappern}")
 
 def save_data_message_handler(address, *args): # save information from puredata
     # 1. DATE
@@ -142,6 +173,8 @@ def save_data_message_handler(address, *args): # save information from puredata
         save_line[36+idx] = flatterns[1][idx] # d1
         save_line[52+idx] = flatterns[2][idx] # c2
         save_line[68+idx] = flatterns[3][idx] # d2
+    if address=="/save/bpm":
+        save_line[85]=args[0]
     with open(tap_file,'a') as results: 
             wr = csv.writer(results)
             wr.writerow(save_line)
@@ -156,7 +189,7 @@ def test_results_message_handler(address, *args): # /get_prediction (bool)
     save_test_results[1]=time
     if(address=="/test_results/testnum"):
         save_test_results[2]=int(args[0])
-        print(f"args {args[0]}")
+        #print(f"args {args[0]}")
     elif(save_test_results[2]>0):
         for i in range(len(args)):
             save_test_results[i+3]=args[i]
@@ -165,7 +198,7 @@ def test_results_message_handler(address, *args): # /get_prediction (bool)
             wr.writerow(save_test_results)
             results.close()
     if(save_test_results[2]==3):
-        print("Saved Tap-Test Results to CSV.")
+        print("Saved Tap Consistency Test Results to CSV.")
 
 def test_message_handler(address, *args):
     if address == "/test/next_pattern":
@@ -212,6 +245,7 @@ def pattern_to_pd(pattern, name, udp, type=0):
                 udp.send_message("/pattern/step",step)
                 udp.send_message("/pattern/velocity",1)
         print(f"Sent pattern: {patt_name}")
+        #print(f"Sent pattern: {pattern}")
     if type==1:
         for step in range(len(pattern)):
             for note in range(len(pattern[step])):
@@ -242,11 +276,11 @@ def pattern_to_pd(pattern, name, udp, type=0):
 
 
 
-## PUREDATA INIT
-# Parse and send selected pattern
-#input_patt = puredata.parse_8(input_patt) # edit this to be done in send function, not separate file
-#pattern_to_pd(input_patt, patt_name, send_to_pd, type=0)
-#pattern_to_pd(flatterns, patt_name, send_to_pd, type=2)
+## 
+""" 
+What about bias in the sense that participants can see the drum patterns, hinting at implied rhythm?
+"""
+##
 
 current_test = 0
 while _quit[0] is False:
@@ -270,7 +304,6 @@ while _quit[0] is False:
         flatterns = get_flat(input_patt)
         input_patt = puredata.parse_8(input_patt) # edit this to be done in send function, not separate file
         pattern_to_pd(input_patt, patt_name, send_to_pd, type=0)
+        print(f"Current test [{current_test}]: {test_patterns[current_test]}")
         current_test+=1
         _next_pattern = False
-
-    ## FIX delaunay interpolation stuff wherepoint is outside any known triangles

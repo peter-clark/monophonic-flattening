@@ -104,4 +104,4 @@ def print_sections(sections):
         n += len(sections[i])
         if (i+1)%4==0 and i!=0:
             t+=1
-    print(n)
+    print(f"Total: {n}")
