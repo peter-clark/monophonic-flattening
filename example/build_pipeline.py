@@ -64,13 +64,19 @@ if _saveembeddings:
 
 ## Apply flattening algorithms to all patterns
 #       [continuous1, continuous2, discrete1, discrete2]
-flat_names = ["continuous1", "discrete1", "continuous2", "discrete2"]
+flat_names = ["continuous1", "discrete1", "continuous2", "discrete2","semicontinuous1", "semicontinuous2"]
 flattened_dir = dir + "/flattened/"
 all_flat = [[] for x in range(len(all_pattlists))]
-flat_by_alg = [[[] for x in range(len(all_pattlists))] for y in range(4)]
+flat_by_alg = [[[] for x in range(len(all_pattlists))] for y in range(6)]
 for pattern in range(len(all_pattlists)):
     #print(all_names[pattern])
     flat = flatten.flat_from_patt(all_pattlists[pattern])
+    print(len(flat))
+    print(len(flat[1]))
+    sc1 = np.where(flat[1]==1, flat[0],flat[1])
+    sc2 = np.where(flat[3]==1, flat[2],flat[3])
+    flat.append(sc1)
+    flat.append(sc2)
     all_flat[pattern] = flat
     for i in range(len(flat_by_alg)):
         flat_by_alg[i][pattern] = flat[i]

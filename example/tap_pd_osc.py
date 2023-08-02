@@ -38,6 +38,7 @@ name_file.close()
 pttrn = 0
 pttrn = input(f"Select pattern index [0-{len(all_pattlists)}]: ")# Prompt to select pattern
 patt_name = all_names[int(pttrn)]
+print(patt_name)
 input_patt = all_pattlists[int(pttrn)]
 
 # Flatten pattern and organize

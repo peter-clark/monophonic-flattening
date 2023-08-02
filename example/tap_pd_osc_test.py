@@ -59,10 +59,6 @@ descriptor_file.close()
 mds_pos_file = open(pickle_dir+"mds_pos.pkl", 'rb')
 mds_pos = pickle.load(mds_pos_file) 
 mds_pos_file.close()
-sections=[[]for x in range(16)] 
-pattern_idxs = [[]for x in range(16)]
-tf.make_pos_grid(mds_pos,sections,pattern_idxs, False) # bool is show plot
-# tf.print_sections(sections)
 
 # Load patterns from pickle file
 patt_file = open(pickle_dir+"patterns.pkl", 'rb')
@@ -74,7 +70,11 @@ name_file = open(pickle_dir+"pattern_names.pkl","rb")
 all_names = pickle.load(name_file)
 name_file.close()
 
-
+sections=[[]for x in range(16)] 
+names = [[] for x in range(16)]
+pattern_idxs = [[]for x in range(16)]
+tf.make_pos_grid(mds_pos,sections,pattern_idxs,all_names,names, False) # bool is show plot
+# tf.print_sections(sections)
 
 
 
@@ -155,31 +155,32 @@ def tap_message_handler(address, *args): # /tap
     #print(f"Tapped Pattern: {tappern}")
 
 def save_data_message_handler(address, *args): # save information from puredata
-    # 1. DATE
-    today = datetime.datetime.now(pytz.timezone("Europe/Madrid"))
-    date = today.date()
-    save_line[0] = date
-    # 2. TIME
-    time = today.strftime("%H:%M:%S")
-    save_line[1] = time
-    # 3. INPUT PATT
-    save_line[2] = next_patt
-    # 4. INPUT PATT NAME
-    save_line[3] = patt_name
-    # 5-20. Tapped Pattern [x16]
-    for idx in range(len(tappern)):
-        save_line[4+idx] = tappern[idx]
-        save_line[20+idx] = flatterns[0][idx] # c1
-        save_line[36+idx] = flatterns[1][idx] # d1
-        save_line[52+idx] = flatterns[2][idx] # c2
-        save_line[68+idx] = flatterns[3][idx] # d2
+    if address=="/save":
+        # 1. DATE
+        today = datetime.datetime.now(pytz.timezone("Europe/Madrid"))
+        date = today.date()
+        save_line[0] = date
+        # 2. TIME
+        time = today.strftime("%H:%M:%S")
+        save_line[1] = time
+        # 3. INPUT PATT
+        save_line[2] = next_patt
+        # 4. INPUT PATT NAME
+        save_line[3] = patt_name
+        # 5-20. Tapped Pattern [x16]
+        for idx in range(len(tappern)):
+            save_line[4+idx] = tappern[idx]
+            save_line[20+idx] = flatterns[0][idx] # c1
+            save_line[36+idx] = flatterns[1][idx] # d1
+            save_line[52+idx] = flatterns[2][idx] # c2
+            save_line[68+idx] = flatterns[3][idx] # d2
     if address=="/save/bpm":
         save_line[85]=args[0]
-    with open(tap_file,'a') as results: 
-            wr = csv.writer(results)
-            wr.writerow(save_line)
-            results.close()
-    # SAVE TO CSV ###### 
+    if address=="/save":
+        with open(tap_file,'a') as results: 
+                wr = csv.writer(results)
+                wr.writerow(save_line)
+                results.close()
 
 def test_results_message_handler(address, *args): # /get_prediction (bool)
     today = datetime.datetime.now(pytz.timezone("Europe/Madrid"))

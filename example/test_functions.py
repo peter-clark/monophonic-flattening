@@ -10,7 +10,7 @@ def EuclideanDistance(a, b):
 def get_random_selection():
     print()
 
-def make_pos_grid(data, sections, indices, _plot=False):
+def make_pos_grid(data, sections, indices, all_names,names, _plot=False):
     '''
     Takes positions, and returns patterns 16 sections.                                                                                                                                                         
 [12][13][14][15]
@@ -22,62 +22,85 @@ def make_pos_grid(data, sections, indices, _plot=False):
     y = [pos[1] for pos in data[:]]
         
     for i in range(len(x)):
-        if y[i]<=0.25: # row 1
+        if y[i]<=0.25: # row 1 --------------------------------------------------------
             if x[i]<=0.25: # col 1
                 sections[0].append([x[i],y[i]])
                 indices[0].append(i)
+                names[0].append(all_names[i])
             elif x[i]<=0.50 and x[i]>0.25: # col 2
                 sections[1].append([x[i],y[i]])
                 indices[1].append(i)
+                names[1].append(all_names[i])
             elif x[i]<=0.75 and x[i]>0.5:
                 sections[2].append([x[i],y[i]])
                 indices[2].append(i)
+                names[2].append(all_names[i])
             else:
                 sections[3].append([x[i],y[i]])
                 indices[3].append(i)
-        elif y[i]<=0.5: # row 2
+                names[3].append(all_names[i])
+        elif y[i]<=0.5: # row 2 --------------------------------------------------------
             if x[i]<=0.25: # col 1
                 sections[4].append([x[i],y[i]])
                 indices[4].append(i)
+                names[4].append(all_names[i])
             elif x[i]<=0.50 and x[i]>0.25:
                 sections[5].append([x[i],y[i]])
                 indices[5].append(i)
+                names[5].append(all_names[i])
             elif x[i]<=0.75 and x[i]>0.5:
                 sections[6].append([x[i],y[i]])
                 indices[6].append(i)
+                names[6].append(all_names[i])
             else:
                 sections[7].append([x[i],y[i]])
                 indices[7].append(i)
-        elif y[i]<=0.75: # row 3
+                names[7].append(all_names[i])
+        elif y[i]<=0.75: # row 3 --------------------------------------------------------
             if x[i]<=0.25: # col 1
                 sections[8].append([x[i],y[i]])
                 indices[8].append(i)
+                names[8].append(all_names[i])
             elif x[i]<=0.50 and x[i]>0.25:
                 sections[9].append([x[i],y[i]])
                 indices[9].append(i)
+                names[9].append(all_names[i])
             elif x[i]<=0.75 and x[i]>0.5:
                 sections[10].append([x[i],y[i]])
                 indices[10].append(i)
+                names[10].append(all_names[i])
             else:
                 sections[11].append([x[i],y[i]])
                 indices[11].append(i)
-        else: # row 4
+                names[11].append(all_names[i])
+        else: # row 4 ----------------------------------------------------------------------
             if x[i]<=0.25: # col 1
                 sections[12].append([x[i],y[i]])
                 indices[12].append(i)
+                names[12].append(all_names[i])
             elif x[i]<=0.50 and x[i]>0.25:
                 sections[13].append([x[i],y[i]])
                 indices[13].append(i)
+                names[13].append(all_names[i])
             elif x[i]<=0.75 and x[i]>0.5:
                 sections[14].append([x[i],y[i]])
                 indices[14].append(i)
+                names[14].append(all_names[i])
             else:
                 sections[15].append([x[i],y[i]])
                 indices[15].append(i)
+                names[15].append(all_names[i])
     if _plot:
         plt.scatter(x,y, c='orange',s=7)
-        plt.scatter(0.46644574, 0.40844336, c='green',s=12)
-        #box
+        _x=[]
+        _y=[]
+        for i in range(len(x)):
+            if i==894 or i==423 or i==1367 or i==249 or i==939 or i==427 or i==590 or i==143 or i==912 or i==678 or i==1355 or i==580 or i==1043 or i==673 or i==1359 or i==736:
+                _x.append(x[i])
+                _y.append(y[i])
+                plt.text(x[i],y[i],str(i))
+        plt.scatter(_x, _y, c='green',s=12)
+        #boi
         plt.plot((1,1), (0,1), c='grey') #right
         plt.plot((1,0), (0,0), c='grey') #bottom
         plt.plot((1,0), (1,1), c='grey') #top
