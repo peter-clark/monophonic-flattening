@@ -15,8 +15,8 @@ dir = os.getcwd()
 _savepatterns = False
 _saveflattened = False
 _saveembeddings = False
-_savemodels = False
-_savepredictions = False
+_savemodels = True
+_savepredictions = True
 #_savepredictions = _savemodels
 
 ## Extract all patterns and names from MIDI files in (+sub)folder
@@ -71,12 +71,12 @@ flat_by_alg = [[[] for x in range(len(all_pattlists))] for y in range(6)]
 for pattern in range(len(all_pattlists)):
     #print(all_names[pattern])
     flat = flatten.flat_from_patt(all_pattlists[pattern])
-    print(len(flat))
-    print(len(flat[1]))
+    #print(len(flat))
+    #print(len(flat[1]))
     sc1 = np.where(flat[1]==1, flat[0],flat[1])
     sc2 = np.where(flat[3]==1, flat[2],flat[3])
-    flat.append(sc1)
-    flat.append(sc2)
+    #flat.append(sc1)
+    #flat.append(sc2)
     all_flat[pattern] = flat
     for i in range(len(flat_by_alg)):
         flat_by_alg[i][pattern] = flat[i]
@@ -88,10 +88,12 @@ for pattern in range(len(all_pattlists)):
             for i in range(len(flat)):
                 f.write(str(all_flat[pattern][i])+"\n") if i!=len(flat)-1 else f.write(str(all_flat[pattern][i]))
         for i in range(len(flat_by_alg)):
-            with open(dir+"/"+flat_names[i]+".txt",'w') as g:
+            with open(dir+"/flat/"+flat_names[i]+".txt",'w') as g:
                 for pattern in range(len(all_pattlists)):
                     g.write(str(flat_by_alg[i][pattern])+"\n") if i!=len(all_pattlists)-1 else g.write(str(flat_by_alg[i][pattern]))
-
+file = open(os.getcwd()+"/flat/flatbyalg.pkl", 'wb')
+pickle.dump(flat_by_alg, file, -1)
+file.close()
 print("Patterns have been flattened\n")
 
 

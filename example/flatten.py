@@ -54,7 +54,7 @@ def flat_from_patt(pattern):
     pattern_LMH = get_LMH(pattern) # LOW MID HIGH
     pattern_LMH_count=[[0 for x in range(len(pattern_LMH))] for y in range(3)]
     total_count = [0.0 for x in range(4)]
-    flattened_patterns = [[0.0 for x in range(len(pattern_LMH))]for y in range(4)]
+    flattened_patterns = [[0.0 for x in range(len(pattern_LMH))]for y in range(6)]
     true_sync_salience = [7,1,2,1, 3,1,2,1, 4,1,2,1, 5,1,2,1]
     metric_sal_strength = [6,0,1,0, 2,0,1,0, 3,0,1,0, 4,0,1,0]
     sync_strength = [0,1,0,2, 0,1,0,3, 0,1,0,4, 0,1,0,6] 
@@ -134,6 +134,8 @@ def flat_from_patt(pattern):
     for step in range(len(pattern_LMH)):
         flattened_patterns[1][step]=1 if flattened_patterns[1][step]>=means[0] else 0
         flattened_patterns[3][step]=1 if flattened_patterns[3][step]>=means[1] else 0
+        flattened_patterns[4][step]=flattened_patterns[0][step] if flattened_patterns[1][step]==1 else 0
+        flattened_patterns[5][step]=flattened_patterns[2][step] if flattened_patterns[3][step]==1 else 0
 
     return flattened_patterns
 

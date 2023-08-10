@@ -14,6 +14,7 @@ from sklearn.model_selection import RepeatedStratifiedKFold
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 import re
+import seaborn
 
 def parse(line):
     line = str(line)
@@ -206,12 +207,12 @@ def test_loop(model, test_DL, criterion):
             predicted = pred.detach().numpy()
             c = coords.detach().numpy()
             for i in range(len(c)):
-                correct.append(EuclideanDistance(predicted[i], c[i]))#/np.sqrt((c[i][0]**2)+(c[i][1]**2)))
+                correct.append(EuclideanDistance(predicted[i], c[i]))
     
     test_loss /= num_batches
     correct_avg = np.average(correct)
     
-    print(f"Test Error: EuclidDist:{correct_avg:.4f}, Avg loss: {test_loss:.4f}")
+    #print(f"Test Error: EuclidDist:{correct_avg:.4f}, Avg loss: {test_loss:.4f}")
 
 def NN_pipeline(patterns, coords, _save, model_dir, _load=False):
 
@@ -231,7 +232,7 @@ def NN_pipeline(patterns, coords, _save, model_dir, _load=False):
         batch_size = 32
         criterion = nn.MSELoss()
         optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-        epochs = 400
+        epochs = 200
         train_loss = 0.0
         test_loss = 0.0
 
@@ -246,7 +247,7 @@ def NN_pipeline(patterns, coords, _save, model_dir, _load=False):
         print_int=50
         for ep in range(epochs):
             if ep%print_int==0 or ep==epochs-1:
-                print(f"EPOCH: {ep}/{epochs}")
+                #print(f"EPOCH: {ep}/{epochs}")
                 test_loop(model, test_DL, criterion)
             train_loop(model, train_DL, criterion, optimizer)
         
@@ -291,13 +292,18 @@ def NN_pipeline(patterns, coords, _save, model_dir, _load=False):
             _threshold_bins[7] += 1    
         threshold_bins[7] += 1
 
-        if i!=0 and i%200==0:
-            print(f"Pred:[{predicted[i][0]:.3f},{predicted[i][1]:.3f}]-->Actual:[{coords[i][0]:.3f},{coords[i][1]:.3f}] <> Dist:{distance[i]:.3f}")
+        #if i!=0 and i%200==0:
+            #print(f"Pred:[{predicted[i][0]:.3f},{predicted[i][1]:.3f}]-->Actual:[{coords[i][0]:.3f},{coords[i][1]:.3f}] <> Dist:{distance[i]:.3f}")
     print(f"\n|{threshold_bins[0]/len(patterns):.3f}|{threshold_bins[1]/len(patterns):.3f}|{threshold_bins[2]/len(patterns):.3f}|{threshold_bins[3]/len(patterns):.3f}|{threshold_bins[4]/len(patterns):.3f}|{threshold_bins[5]/len(patterns):.3f}|{threshold_bins[6]/len(patterns):.3f}|{threshold_bins[7]/len(patterns):.3f}| <-- CUMULATIVE")
     print(f"|{_threshold_bins[0]/len(patterns):.3f}|{_threshold_bins[1]/len(patterns):.3f}|{_threshold_bins[2]/len(patterns):.3f}|{_threshold_bins[3]/len(patterns):.3f}|{_threshold_bins[4]/len(patterns):.3f}|{_threshold_bins[5]/len(patterns):.3f}|{_threshold_bins[6]/len(patterns):.3f}|{_threshold_bins[7]/len(patterns):.3f}| <-- SEPARATE")
     print(f"|-----|-----|-----|-----|-----|-----|-----|-----|")
     print(f"|0.025|0.050|0.075|0.100|0.150|0.200|0.250|1.000| <-- DISTANCE BINS") 
+    print(f"\n >>>>>>>>>>>>>>>>>>>>>>> Euclidean Distance = {np.mean(distance):.5f}/{np.average(distance):.5f} [{np.std(distance):.3f}/{np.var(distance):.3f}] <<<<<<<<< {np.ptp(distance)}")
 
+    """ 
+    seaborn.histplot(distance)
+    plt.show()
+     """
     if _save:
         torch.save(model.state_dict(), model_dir+".pt")
     print()

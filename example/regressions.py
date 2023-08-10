@@ -13,6 +13,8 @@ from sklearn.multioutput import MultiOutputRegressor
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import RepeatedKFold
 
+import pickle
+
 
 # This function regex parses a line in a txt file to
 #   extract all the floats and integers in an input.
@@ -29,7 +31,8 @@ flat = []
 mds_pos = []
 
 dir_list = os.listdir(os.getcwd())
-for item in dir_list:
+pickle_dir = os.getcwd()+"/data/"
+""" for item in dir_list:
     print(item)
 filename = input("Load Patterns File: ")
 with open(filename) as file:
@@ -44,8 +47,21 @@ with open(filename) as file:
     for line in file:
         l = parse(line)
         file_contents.append(l)
-    mds_pos=file_contents
+    mds_pos=file_contents """
 
+mds_pos_file = open(pickle_dir+"mds_pos.pkl", 'rb')
+mds_pos = pickle.load(mds_pos_file) 
+mds_pos_file.close()
+flat_file =open(os.getcwd()+"/flat/flatbyalg.pkl",'rb')
+flat = pickle.load(flat_file)
+flat_file.close()
+print(len(flat))
+print(len(flat[0]))
+print(len(flat[0][0]))
+print(len(mds_pos))
+print(len(mds_pos[0]))
+temp = flat
+flat = temp[5]
 # Regressions
 linear_model = LinearRegression()
 linear_model.fit(flat,mds_pos)
@@ -61,8 +77,9 @@ svr_wrap_model = MultiOutputRegressor(svr_model)
 svr_wrap_model.fit(flat,mds_pos)
 
 #   Define procedure
-cross_validation = RepeatedKFold(n_splits=10, n_repeats=3, random_state=1) # 10-fold
+cross_validation = RepeatedKFold(n_splits=10, n_repeats=5, random_state=1) # 10-fold
 #   Evaluate
+np.seterr("ignore")
 n_scores_linear = np.abs(cross_val_score(linear_model, flat, mds_pos, scoring='neg_mean_absolute_error', cv=cross_validation,n_jobs=-1))
 n_scores_kNN = np.abs(cross_val_score(kNN_model, flat, mds_pos, scoring='neg_mean_absolute_error', cv=cross_validation,n_jobs=-1))
 n_scores_DT = np.abs(cross_val_score(DT_model, flat, mds_pos, scoring='neg_mean_absolute_error', cv=cross_validation,n_jobs=-1))

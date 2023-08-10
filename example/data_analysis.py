@@ -118,7 +118,7 @@ for i in range(len(avgs)):
         mse[j]+=sk.mean_squared_error(avgs[i], algs[i][j])
         mae[j]+=sk.mean_absolute_error(avgs[i], algs[i][j])
         rsqr[j]+=sk.r2_score(avgs[i], algs[i][j])
-        rmse[j]+=pow(np.abs(sk.r2_score(avgs[i], algs[i][j])),0.5)
+        rmse[j]+=pow(np.abs(sk.mean_squared_error(avgs[i], algs[i][j])),0.5)
         mape[j]+=sk.mean_absolute_percentage_error(avgs[i],algs[i][j])
 
 # ANOVA
@@ -127,30 +127,33 @@ print(f"{test_patterns[i]} ANOVA: ")
 print(f"F-Statistics: {f_stat:1.4f}")
 print(f"P-Values: {p_val:1.6f}")
 
-# Reorder data for tukey
-pre_df=[]
-for i in range(6):
-    print(f"len d_anova {len(data_anova[i])}")
-    for j in range(len(data_anova[i])):
-        pre_df.append([i, data_anova[i][j]])
+_tukey = False
+if _tukey:
+    # Reorder data for tukey
+    pre_df=[]
+    for i in range(6):
+        print(f"len d_anova {len(data_anova[i])}")
+        for j in range(len(data_anova[i])):
+            pre_df.append([i, data_anova[i][j]])
 
-# Do Tukey's HSD
-alg_val=[row[0] for row in pre_df]
-dist_val = [row[1] for row in pre_df]
-df = pd.DataFrame({'algorithm': alg_val, 'distance':dist_val})
-tukey = pairwise_tukeyhsd(endog=df["distance"],groups=df['algorithm'], alpha=0.05)
-np.set_printoptions(precision=6)
-print(tukey)
-tukey_df = pd.DataFrame(data=tukey._results_table.data[1:], columns=tukey._results_table.data[0])
+    # Do Tukey's HSD
+    alg_val=[row[0] for row in pre_df]
+    dist_val = [row[1] for row in pre_df]
+    df = pd.DataFrame({'algorithm': alg_val, 'distance':dist_val})
+    tukey = pairwise_tukeyhsd(endog=df["distance"],groups=df['algorithm'], alpha=0.05)
+    np.set_printoptions(precision=6)
+    print(tukey)
+    tukey_df = pd.DataFrame(data=tukey._results_table.data[1:], columns=tukey._results_table.data[0])
 
-# Set the desired precision for p-adj values
-pd.set_option('display.float_format', '{:.12f}'.format)
+    # Set the desired precision for p-adj values
+    pd.set_option('display.float_format', '{:.12f}'.format)
 
-# Print the DataFrame
-print(tukey_df)
+    # Print the DataFrame
+    print(tukey_df)
+    seaborn.boxplot(x=alg_val, y=np.abs(dist_val), color="lightcoral")
 
 idx2=idx-1
-seaborn.boxplot(x=alg_val, y=np.abs(dist_val), color="lightcoral")
+
 #plt.plot(idx2, c_one, color='darkred', marker='o', linestyle='--', label="Predicted Value")
 plt.ylabel("ABS Distance in Velocity Value")
 plt.xlabel("Alg [Cont, Disc, Semi-Cont]")
@@ -174,3 +177,28 @@ for tn in range(len(test_names)): # iterate through test types
     print(f"{test_names[tn]}:-------------:")
     for algtype in range(len(alg_names)): # iterate through 6 alg types
         print(f"{alg_scores[tn][algtype]:1.4f} <- {alg_names[algtype]}")
+
+by_pattern = [[] for x in range(16)]
+for i in range(len(data)):
+    if i!=0: # skip first row
+        for j in range(len(test_patterns)):
+            if int(data[i][2]) == test_patterns[j]: # if is pattern #, get tap
+                by_pattern[j].append(np.asarray(data[i][4:20], dtype=float))
+
+
+patt_means = [[0.0 for x in range(16)] for x in range(16)]
+patt_stds = [[0.0 for x in range(16)] for x in range(16)]
+patt_vars = [[0.0 for x in range(16)] for x in range(16)]
+for patt in range(len(by_pattern)):
+    patt_means[patt] = np.mean(by_pattern[patt], axis=0)
+    patt_stds[patt] = np.std(by_pattern[patt], axis=0)
+    patt_vars[patt] = np.var(by_pattern[patt], axis=0)
+for i in range(16):
+    #print(f"{patt_means[i]}")
+    #print(f"{patt_stds[i]}")
+    plt.errorbar(idx,patt_means[i],yerr=patt_stds[i], color='grey', linewidth=1)
+    plt.plot(idx,patt_means[i], marker="o", color='lightcoral', linestyle='-')
+    plt.plot(idx, algs[i][2], marker='x', linestyle='--')
+    plt.title(f"{test_patterns[i]}")
+    #plt.plot(idx,patt_stds)
+    plt.show()
