@@ -91,7 +91,7 @@ def make_pos_grid(data, sections, indices, all_names,names, _plot=False):
                 indices[15].append(i)
                 names[15].append(all_names[i])
     if _plot:
-        plt.scatter(x,y, c='orange',s=7)
+        plt.scatter(x,y, c='lightskyblue',s=7)
         _x=[]
         _y=[]
         for i in range(len(x)):
@@ -99,20 +99,21 @@ def make_pos_grid(data, sections, indices, all_names,names, _plot=False):
                 _x.append(x[i])
                 _y.append(y[i])
                 plt.text(x[i],y[i],str(i))
-        plt.scatter(_x, _y, c='green',s=12)
+        plt.scatter(_x, _y, c='orangered',s=12)
+        plt.title("Polyphonic Rhythm Space and Selected Patterns for Testing")
         #boi
-        plt.plot((1,1), (0,1), c='grey') #right
-        plt.plot((1,0), (0,0), c='grey') #bottom
-        plt.plot((1,0), (1,1), c='grey') #top
-        plt.plot((0,0), (1,0), c='grey') #left
+        plt.plot((1,1), (0,1), c='grey', linewidth=1) #right
+        plt.plot((1,0), (0,0), c='grey', linewidth=1) #bottom
+        plt.plot((1,0), (1,1), c='grey', linewidth=1) #top
+        plt.plot((0,0), (1,0), c='grey', linewidth=1) #left
         #verts
-        plt.plot((0.25,0.25), (0,1), c='grey') #25%
-        plt.plot((0.5,0.5), (0,1), c='grey') #50%
-        plt.plot((0.75,0.75), (0,1), c='grey') #75%
+        plt.plot((0.25,0.25), (0,1), c='grey', linewidth=1) #25%
+        plt.plot((0.5,0.5), (0,1), c='grey', linewidth=1) #50%
+        plt.plot((0.75,0.75), (0,1), c='grey', linewidth=1) #75%
         #horiz
-        plt.plot((0,1),(0.25,0.25), c='grey') #25%
-        plt.plot((0,1),(0.5,0.5), c='grey') #50%
-        plt.plot((0,1),(0.75,0.75), c='grey') #75%
+        plt.plot((0,1),(0.25,0.25), c='grey', linewidth=1) #25%
+        plt.plot((0,1),(0.5,0.5), c='grey', linewidth=1) #50%
+        plt.plot((0,1),(0.75,0.75), c='grey', linewidth=1) #75%
 
         #plt.plot((x_min,y_min),(x_min,0), c='grey')
         #plt.plot((x_min,y_min),(x_max,0), c='grey')
