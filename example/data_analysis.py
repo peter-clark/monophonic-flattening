@@ -3,12 +3,18 @@ import numpy as np
 import csv
 import os
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import scipy.stats as stats
 from statsmodels.stats.multicomp import pairwise_tukeyhsd
 import seaborn 
 import pickle
 import test_functions as tf
 import sklearn.metrics as sk
+import warnings
+
+with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", category=UserWarning, module="matplotlib\..*")
+
 
 data = []
 tap_file = os.getcwd()+"/results/tapexplore.csv"
@@ -40,9 +46,11 @@ with open(tap_file) as results:
 sc1 = [0.0 for x in range(16)]
 sc2 = [0.0 for x in range(16)]
 _idx = [int(x) for x in range(16)]
-idx = np.array(_idx)
+idx = np.array(_idx, dtype=int)
 idx = idx + 1
 data_anova=[[0.0 for x in range(len(data)-1)] for y in range(6)]
+n_subjects=19
+by_person =[[[0.0 for x in range(17)] for y in range(18)] for z in range(n_subjects)] # [patt# tapresults]x18tests
 # Calculate 5th 6th alg
 for test in range(len(data)):
     if test==0:
@@ -60,6 +68,8 @@ counts = np.array([0 for x in range(16)], dtype=float)
 avgs = np.array([[0.0 for x in range(16)] for y in range(16)], dtype=float)
 algs = np.array([[[0.0 for x in range(16)] for y in range(6)]for z in range(16)], dtype=float)
 alg_names = ["cont1","disc1","cont2","disc2","semicont1","semicont2"]
+t_count=0
+p_count=0
 for i in range(len(data)):
     if i!=0: # skip first row
         md=[0.0 for b in range(6)] #mean distance
@@ -94,7 +104,19 @@ for i in range(len(data)):
                 algs[y][4] = sc_one
                 algs[y][5] = sc_two
                 #print(algs)
-
+        
+        # find by person
+        line = [0.0 for x in range(17)]
+        line[0]=int(data[i][2])
+        line[1:16]=tap
+        if (i-1)%18==0 and (i-1)!=0:
+            p_count += 1
+            t_count = 0
+        if(p_count!=n_subjects):
+            by_person[p_count][t_count] = np.asarray(line, dtype=float)
+            #print(f"P:{p_count} t:{t_count}")
+            t_count +=1
+#print(by_person)
 avgs = avgs / counts
 
 # Remove mistaps (if needed)
@@ -133,17 +155,22 @@ alg_scores[3]=rsqr
 mape /= 16
 alg_scores[4]=mape
 test_names = ["mae","mse","rmse","rsqr","mape"]
-# Print error-test results
-for tn in range(len(test_names)): # iterate through test types
-    print(f"{test_names[tn]}:-------------:")
-    for algtype in range(len(alg_names)): # iterate through 6 alg types
-        print(f"{alg_scores[tn][algtype]:1.4f} <- {alg_names[algtype]}")
+_printtest = False
+if _printtest:
+    # Print error-test results
+    for tn in range(len(test_names)): # iterate through test types
+        print(f"{test_names[tn]}:-------------:")
+        for algtype in range(len(alg_names)): # iterate through 6 alg types
+            print(f"{alg_scores[tn][algtype]:1.4f} <- {alg_names[algtype]}")
 
+
+_printANOVA = False
 # ANOVA
 f_stat,p_val = stats.f_oneway(data_anova[0],data_anova[1],data_anova[2],data_anova[3],data_anova[4],data_anova[5])
-print(f"{test_patterns[i]} ANOVA: ")
-print(f"F-Statistics: {f_stat:1.4f}")
-print(f"P-Values: {p_val:1.6f}")
+if _printANOVA:
+    print(f"{test_patterns[i]} ANOVA: ")
+    print(f"F-Statistics: {f_stat:1.4f}")
+    print(f"P-Values: {p_val:1.6f}")
 
 # Tukey's HSD
 _tukey = True
@@ -151,7 +178,7 @@ if _tukey:
     # Reorder data for tukey
     pre_df=[]
     for i in range(6):
-        print(f"len d_anova {len(data_anova[i])}")
+        #print(f"len d_anova {len(data_anova[i])}")
         for j in range(len(data_anova[i])):
             pre_df.append([i, data_anova[i][j]])
 
@@ -161,14 +188,15 @@ if _tukey:
     df = pd.DataFrame({'algorithm': alg_val, 'distance':dist_val})
     tukey = pairwise_tukeyhsd(endog=df["distance"],groups=df['algorithm'], alpha=0.05)
     np.set_printoptions(precision=6)
-    print(tukey)
+    #print(tukey)
     tukey_df = pd.DataFrame(data=tukey._results_table.data[1:], columns=tukey._results_table.data[0])
 
     # Set the desired precision for p-adj values
-    pd.set_option('display.float_format', '{:.12f}'.format)
+    pd.set_option('display.float_format', '{:.4f}'.format)
 
     # Print the DataFrame
-    print(tukey_df)
+    if _printANOVA:
+        print(tukey_df)
 
     #seaborn.boxplot(x=alg_val, y=(dist_val), color="lightcoral")
     #plt.show()
@@ -206,7 +234,7 @@ for patt in range(len(by_pattern)):
 # Plot
 if _by_pattern:
     _firstplot=False
-    _secondplot=True
+    _secondplot=False
     if _firstplot:
         for i in range(16):
             plt.errorbar(idx,patt_means[i],yerr=patt_stds[i], color='grey', linewidth=1)
@@ -222,7 +250,7 @@ if _by_pattern:
     
     if _secondplot:
         alg = 2                 #  <---- pick flattening alg here
-        
+
         for j in range(4):
             i=j*4
             fig, axes = plt.subplots(2, 2, figsize=(12, 7))
@@ -268,3 +296,103 @@ if _by_pattern:
             fig.legend(handles=[line1,line2], loc='upper left', labels=['Avg. Tap','Cont.2 (DSM)'])
             fig.tight_layout()
             plt.show()
+
+
+# By Person Analysis
+person_control_mean_diff = [[[0.0 for x in range(16)] for y in range(4)] for z in range(n_subjects)]
+pcmd = [[[0.0 for x in range(16)] for y in range(2)] for z in range(n_subjects)]
+
+_byperson = True
+_control = False
+_all = True
+if _byperson:
+    if _control:
+        control1=678
+        control2=1355
+        # [[17]x18]
+        for person in range(len(by_person)): # per subject:
+            cnt=0
+            cnt2=2
+            for test in range(len(by_person[person])): # per test
+                if by_person[person][test][0] == control1:
+                    for i in range(16):
+                        person_control_mean_diff[person][cnt][i] = by_person[person][test][i+1] # skip patt# in first cell
+                    cnt+=1
+                elif by_person[person][test][0] == control2:
+                    for i in range(16):
+                        person_control_mean_diff[person][cnt2][i] = by_person[person][test][i+1] # skip patt# in first cell
+                    cnt2+=1
+            for i in range(16):
+                pcmd[person][0][i]=np.abs(person_control_mean_diff[person][0][i]-person_control_mean_diff[person][1][i])
+                pcmd[person][1][i]=np.abs(person_control_mean_diff[person][2][i]-person_control_mean_diff[person][3][i])
+
+        ctrl1 = np.array([0.0 for x in range(16)],dtype=float)
+        ctrl2 = np.array([0.0 for x in range(16)],dtype=float)
+        _ctrl1 = np.array([[0.0 for x in range(16)]for y in range(n_subjects)],dtype=float)
+        _ctrl2 = np.array([[0.0 for x in range(16)] for y in range(n_subjects)],dtype=float)
+
+        fig2, (plt1,plt2) = plt.subplots(2, 1, figsize=(11,8))
+
+        for i in range(n_subjects):
+            plt1.plot(idx, pcmd[i][0], marker="x", color='lightcoral', linestyle='--', label="Patt. 678",alpha=.65)
+            plt2.plot(idx, pcmd[i][1], marker="x", color='lightcoral', linestyle='--', label="Patt. 1355",alpha=.65)
+            ctrl1 += pcmd[i][0]
+            _ctrl1[i] = pcmd[i][0]
+            ctrl2 += pcmd[i][1]
+            _ctrl2[i] = pcmd[i][1]
+
+        plt1.errorbar(idx,ctrl1/n_subjects, yerr=np.std(_ctrl1, axis=0), color='black', linewidth=1)
+        plt1.plot(idx,ctrl1/n_subjects, marker='o', linestyle='-', color='black', label='Mean(678)')
+        plt1.set_xlabel("Step in Pattern")
+        plt1.set_ylabel("Difference in Velocity")
+
+        plt2.errorbar(idx,ctrl2/n_subjects, yerr=np.std(_ctrl2, axis=0), color='black', linewidth=1)
+        plt2.plot(idx,ctrl2/n_subjects, marker='o', linestyle='-',color='black', label='Mean(1355)')
+        plt2.set_xlabel("Step in Pattern")
+        plt2.set_ylabel("Difference in Velocity")
+        plt.suptitle("Mean Tapped Difference in Control Patterns")
+
+        fig2.tight_layout()
+        plt.show()
+    
+    colormap = mpl.colormaps['winter'].resampled(18)
+    def custom_formatter(x,pos):
+        return test_patterns[str(x)]
+    if _all:
+        for person in range(len(by_person)): # per subject:
+            mean_diff=np.array([[0.0 for x in range(16)] for y in range(18)])
+            stds=np.array([[0.0 for x in range(16)] for y in range(18)])
+            #[894, 423, 1367, 249, 939, 427, 590, 143, 912, 678, 1355, 580, 1043, 673, 1359, 736]
+            # go through subjects tests
+            for test in range(len(by_person[person])):
+                for patt in range(len(test_patterns)): # check which pattern it is
+                    if by_person[person][test][0]==test_patterns[patt]:
+                        #print(f"{test_patterns[patt]} - {all_names[test_patterns[patt]]}")
+                        #print(len(by_person[person][test]))
+                        mean_diff[patt] =  by_person[person][test][1:-1] - patt_means[patt]
+                        #print(by_person[person][test][1:])
+                #print(f"{by_person[1][test]}")        #print(mean_diff[test])
+
+            # get overall mean difference from patt (check for means in patt_means[], test_patterns)
+            # add to means, get std over mean diff
+            lines=[]
+            figure = plt.figure(figsize=(12,6))
+            ax = figure.add_subplot()
+            
+            #ax.boxplot(mean_diff)
+
+            for i in range(18):
+                a = min(1, pow(1-np.mean(mean_diff[i]),2) ) # set alpha
+                ax.plot(idx, np.mean(mean_diff, axis=0), color='red', linestyle='--', marker='o')
+                ax.errorbar(idx, np.mean(mean_diff, axis=0),yerr=np.std(mean_diff, axis=0), linewidth=1, color='black', capsize=2)
+                ax.scatter(idx, mean_diff[i], label=f"{by_person[person][test][0]}", color='lightcoral',linestyle='-', marker='x', alpha=(a))
+
+            ax.set(xticks=idx, xticklabels=[str(x) for x in test_patterns])
+            ax.set_title(f"Subject {person}")
+            ax.set_xlabel("Test Pattern")
+            ax.set_ylabel("Difference from Average")
+            ax.axhline(y=0,color='black', alpha=0.8)
+            plt.show()
+            #colormap(i)
+            if person==2:
+                break;
