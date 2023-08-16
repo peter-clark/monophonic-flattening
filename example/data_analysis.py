@@ -49,7 +49,7 @@ _idx = [int(x) for x in range(16)]
 idx = np.array(_idx, dtype=int)
 idx = idx + 1
 data_anova=[[0.0 for x in range(len(data)-1)] for y in range(6)]
-n_subjects=19
+n_subjects=20
 by_person =[[[0.0 for x in range(17)] for y in range(18)] for z in range(n_subjects)] # [patt# tapresults]x18tests
 # Calculate 5th 6th alg
 for test in range(len(data)):
@@ -304,7 +304,8 @@ pcmd = [[[0.0 for x in range(16)] for y in range(2)] for z in range(n_subjects)]
 
 _byperson = True
 _control = False
-_all = True
+_all = False
+_subjectaverageerror = True
 if _byperson:
     if _control:
         control1=678
@@ -323,8 +324,11 @@ if _byperson:
                         person_control_mean_diff[person][cnt2][i] = by_person[person][test][i+1] # skip patt# in first cell
                     cnt2+=1
             for i in range(16):
-                pcmd[person][0][i]=np.abs(person_control_mean_diff[person][0][i]-person_control_mean_diff[person][1][i])
-                pcmd[person][1][i]=np.abs(person_control_mean_diff[person][2][i]-person_control_mean_diff[person][3][i])
+                pcmd[person][0][i]=(person_control_mean_diff[person][0][i]-person_control_mean_diff[person][1][i])
+                pcmd[person][1][i]=(person_control_mean_diff[person][2][i]-person_control_mean_diff[person][3][i])
+                # abs
+                # pcmd[person][0][i]=np.abs(person_control_mean_diff[person][0][i]-person_control_mean_diff[person][1][i])
+                # pcmd[person][1][i]=np.abs(person_control_mean_diff[person][2][i]-person_control_mean_diff[person][3][i])
 
         ctrl1 = np.array([0.0 for x in range(16)],dtype=float)
         ctrl2 = np.array([0.0 for x in range(16)],dtype=float)
@@ -332,20 +336,25 @@ if _byperson:
         _ctrl2 = np.array([[0.0 for x in range(16)] for y in range(n_subjects)],dtype=float)
 
         fig2, (plt1,plt2) = plt.subplots(2, 1, figsize=(11,8))
-
+        one_box=np.array([[0.0 for y in range(16)] for x in range(n_subjects)],dtype=float)
+        two_box=np.array([[0.0 for y in range(16)] for x in range(n_subjects)],dtype=float)
         for i in range(n_subjects):
             plt1.plot(idx, pcmd[i][0], marker="x", color='lightcoral', linestyle='--', label="Patt. 678",alpha=.65)
             plt2.plot(idx, pcmd[i][1], marker="x", color='lightcoral', linestyle='--', label="Patt. 1355",alpha=.65)
             ctrl1 += pcmd[i][0]
+            one_box[i]=pcmd[i][0]
             _ctrl1[i] = pcmd[i][0]
             ctrl2 += pcmd[i][1]
+            two_box[i]=pcmd[i][1]
             _ctrl2[i] = pcmd[i][1]
-
+        print(len(one_box))
+        plt1.boxplot(one_box[:-2])
         plt1.errorbar(idx,ctrl1/n_subjects, yerr=np.std(_ctrl1, axis=0), color='black', linewidth=1)
         plt1.plot(idx,ctrl1/n_subjects, marker='o', linestyle='-', color='black', label='Mean(678)')
         plt1.set_xlabel("Step in Pattern")
         plt1.set_ylabel("Difference in Velocity")
 
+        plt2.boxplot(two_box[:-2])
         plt2.errorbar(idx,ctrl2/n_subjects, yerr=np.std(_ctrl2, axis=0), color='black', linewidth=1)
         plt2.plot(idx,ctrl2/n_subjects, marker='o', linestyle='-',color='black', label='Mean(1355)')
         plt2.set_xlabel("Step in Pattern")
@@ -355,13 +364,13 @@ if _byperson:
         fig2.tight_layout()
         plt.show()
     
-    colormap = mpl.colormaps['winter'].resampled(18)
+    colormap = mpl.colormaps['winter'].resampled(n_subjects)
     def custom_formatter(x,pos):
         return test_patterns[str(x)]
     if _all:
         for person in range(len(by_person)): # per subject:
-            mean_diff=np.array([[0.0 for x in range(16)] for y in range(18)])
-            stds=np.array([[0.0 for x in range(16)] for y in range(18)])
+            mean_diff=np.array([[0.0 for x in range(16)] for y in range(n_subjects)])
+            stds=np.array([[0.0 for x in range(16)] for y in range(n_subjects)])
             #[894, 423, 1367, 249, 939, 427, 590, 143, 912, 678, 1355, 580, 1043, 673, 1359, 736]
             # go through subjects tests
             for test in range(len(by_person[person])):
@@ -369,7 +378,7 @@ if _byperson:
                     if by_person[person][test][0]==test_patterns[patt]:
                         #print(f"{test_patterns[patt]} - {all_names[test_patterns[patt]]}")
                         #print(len(by_person[person][test]))
-                        mean_diff[patt] =  by_person[person][test][1:-1] - patt_means[patt]
+                        mean_diff[test] =  by_person[person][test][1:-1] - patt_means[patt]
                         #print(by_person[person][test][1:])
                 #print(f"{by_person[1][test]}")        #print(mean_diff[test])
 
@@ -381,7 +390,7 @@ if _byperson:
             
             #ax.boxplot(mean_diff)
 
-            for i in range(18):
+            for i in range(n_subjects):
                 a = min(1, pow(1-np.mean(mean_diff[i]),2) ) # set alpha
                 ax.plot(idx, np.mean(mean_diff, axis=0), color='red', linestyle='--', marker='o')
                 ax.errorbar(idx, np.mean(mean_diff, axis=0),yerr=np.std(mean_diff, axis=0), linewidth=1, color='black', capsize=2)
@@ -394,5 +403,44 @@ if _byperson:
             ax.axhline(y=0,color='black', alpha=0.8)
             plt.show()
             #colormap(i)
+
             if person==2:
                 break;
+    if _subjectaverageerror:
+        # Subject average error (over all patterns) x subject
+        sae = np.array([0.0 for x in range(len(by_person))])
+        sae_box = np.array([[0.0 for y in range(18)] for z in range(len(by_person))])
+        for person in range(len(by_person)):
+            mean_diff=np.array([[0.0 for x in range(16)] for y in range(18)])
+            stds=np.array([[0.0 for x in range(16)] for y in range(18)])
+            for test in range(len(by_person[person])):
+                for patt in range(len(test_patterns)): # check which pattern it is
+                    if by_person[person][test][0]==test_patterns[patt]:
+                        #print(f"{test_patterns[patt]} - {all_names[test_patterns[patt]]}")
+                        #print(len(by_person[person][test]))
+                        mean_diff[test] =  by_person[person][test][1:-1] - patt_means[patt]
+                sae_box[person][test] = np.mean(mean_diff[test])
+            
+            sae[person] = np.mean(sae_box[person][test])
+            #np.mean(mean_diff)
+            print(person)
+            print(sae_box[person])
+            
+        
+        fig = plt.figure(figsize=(12,6))
+        ax = fig.add_subplot()
+        ax.axhline(y=0,color='black', alpha=0.8, linewidth=1,label='0')
+        s_idx = np.array(np.arange(n_subjects))
+        s_idx=np.array([0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19],dtype=int)
+        print(s_idx)
+        ax.set(xticks=s_idx+1, xticklabels=[str(x) for x in s_idx])
+        for i in range(len(by_person)):
+            ax.scatter(np.full(len(sae_box[i]),i),sae_box[i], color='lightgreen', linewidth=0.5, marker='x')
+        ax.boxplot(sae_box)
+        ax.scatter(s_idx, sae, color='lightcoral', linestyle='-', marker='o', label="Subject Avg. Err.")
+        
+        ax.set_title(f"Subject v. Subject Average Error (all patts)")
+        ax.set_xlabel("Subject Pattern")
+        ax.set_ylabel("Average Error from Overall Mean Tapped Pattern")
+        plt.legend()
+        plt.show()
