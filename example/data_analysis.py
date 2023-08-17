@@ -95,6 +95,7 @@ for i in range(len(data)):
         # add tap to avg for pattern, count how many times pattern shows up
         for y in range(len(test_patterns)):
             if int(data[i][2]) == test_patterns[y]:
+                #print(f"{y}-{test_patterns[y]}")
                 avgs[y] += tap
                 counts[y] += 1
                 algs[y][0] = c_one
@@ -306,6 +307,7 @@ _byperson = True
 _control = False
 _all = False
 _subjectaverageerror = True
+_patternaverageerror = True
 if _byperson:
     if _control:
         control1=678
@@ -347,7 +349,7 @@ if _byperson:
             ctrl2 += pcmd[i][1]
             two_box[i]=pcmd[i][1]
             _ctrl2[i] = pcmd[i][1]
-        print(len(one_box))
+        #print(len(one_box))
         plt1.boxplot(one_box[:-2])
         plt1.errorbar(idx,ctrl1/n_subjects, yerr=np.std(_ctrl1, axis=0), color='black', linewidth=1)
         plt1.plot(idx,ctrl1/n_subjects, marker='o', linestyle='-', color='black', label='Mean(678)')
@@ -369,8 +371,8 @@ if _byperson:
         return test_patterns[str(x)]
     if _all:
         for person in range(len(by_person)): # per subject:
-            mean_diff=np.array([[0.0 for x in range(16)] for y in range(n_subjects)])
-            stds=np.array([[0.0 for x in range(16)] for y in range(n_subjects)])
+            mean_diff=np.array([[0.0 for x in range(16)] for y in range(18)])
+            stds=np.array([[0.0 for x in range(16)] for y in range(18)])
             #[894, 423, 1367, 249, 939, 427, 590, 143, 912, 678, 1355, 580, 1043, 673, 1359, 736]
             # go through subjects tests
             for test in range(len(by_person[person])):
@@ -382,14 +384,13 @@ if _byperson:
                         #print(by_person[person][test][1:])
                 #print(f"{by_person[1][test]}")        #print(mean_diff[test])
 
+
             # get overall mean difference from patt (check for means in patt_means[], test_patterns)
             # add to means, get std over mean diff
             lines=[]
             figure = plt.figure(figsize=(12,6))
             ax = figure.add_subplot()
-            
             #ax.boxplot(mean_diff)
-
             for i in range(n_subjects):
                 a = min(1, pow(1-np.mean(mean_diff[i]),2) ) # set alpha
                 ax.plot(idx, np.mean(mean_diff, axis=0), color='red', linestyle='--', marker='o')
@@ -404,43 +405,108 @@ if _byperson:
             plt.show()
             #colormap(i)
 
-            if person==2:
+            if person==2: # breakpoint for how many subjects to see
                 break;
+    
+    
     if _subjectaverageerror:
         # Subject average error (over all patterns) x subject
+        control_patterns = np.array([[[0.0 for x in range(16)] for y in range(4)] for z in range(n_subjects)],dtype=float)
+        control_differences = np.array([[0.0 for y in range(2)] for z in range(n_subjects)], dtype=float)
         sae = np.array([0.0 for x in range(len(by_person))])
         sae_box = np.array([[0.0 for y in range(18)] for z in range(len(by_person))])
+        control1=678
+        c1_idx = 0
+        control2=1355
+        c2_idx = 2
         for person in range(len(by_person)):
             mean_diff=np.array([[0.0 for x in range(16)] for y in range(18)])
             stds=np.array([[0.0 for x in range(16)] for y in range(18)])
+
+            for test in range(len(by_person[person])):
+                
+                # get answers for two control patterns
+                if by_person[person][test][0] == control1:
+                    control_patterns[person][c1_idx]=by_person[person][test][1:-1]
+                    c1_idx+=1
+                if by_person[person][test][0] == control2:
+                    control_patterns[person][c2_idx]=by_person[person][test][1:-1]
+                    c2_idx+=1
+                
+                # check which pattern it is
+                for patt in range(len(test_patterns)): 
+                    if by_person[person][test][0]==test_patterns[patt]:
+                        mean_diff[test] =  by_person[person][test][1:-1] - patt_means[patt]
+                
+                sae_box[person][test] = np.mean(mean_diff[test])
+                sae[person] = np.mean(sae_box[person][test])
+            
+            control_differences[person][0]=np.mean(control_patterns[person][0]-control_patterns[person][1])
+            control_differences[person][1]=np.mean(control_patterns[person][2]-control_patterns[person][3])
+            c1_idx=0
+            c2_idx=2
+            
+            
+        # Plot of MAE  of subjects
+        fig = plt.figure(figsize=(12,6))
+        ax = fig.add_subplot()
+        ax.axhline(y=0,color='black', alpha=0.8, linewidth=1,label='No Error')
+        s_idx = np.array(np.arange(n_subjects))
+        #s_idx=np.array([0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19],dtype=int)
+        ax.set(xticks=s_idx+2, xticklabels=[str(x) for x in s_idx], ylim=(-0.6,0.6))
+        for i in range(len(by_person)):
+            ax.scatter(np.full(len(sae_box[i]),i+1),sae_box[i], color='lightcoral', linewidth=0.5, marker='x', alpha=0.6)
+        ax.scatter(s_idx+1,control_differences[:,0],color="purple",marker='p', label='Subject Control Error (678)')
+        ax.scatter(s_idx+1,control_differences[:,1],color="teal",marker='p', label='Subject Control Error (1355)')
+        ax.boxplot(sae_box.T)
+        ax.scatter(s_idx+1, sae, color='lightcoral', linestyle='-', marker='o', label="Subject Avg. Err.")
+        ax.scatter
+        ax.set_title(f"Subject v. Subject Average Error (all patts)")
+        ax.set_xlabel("Subject #")
+        ax.set_ylabel("Average Velocity Error from Overall Mean Tapped Pattern")
+        plt.legend()
+        plt.show()
+
+
+        # Box plot of MAE of both control patterns
+        fig2 = plt.figure(figsize=(12,6))
+        axx = fig2.add_subplot()
+        print(f"{len(avgs[9])}-{avgs[9]}")
+        print(f"{len(control_patterns[:,0])}-{control_patterns[:,0]}")
+        
+        ax.scatter(s_idx+1,(control_differences[:,0]-avgs[9]),color="purple",marker='p', label='Subject Control Error (678)')
+
+        plt.show()
+
+    if _patternaverageerror:
+        pae = np.array([0.0 for x in range(len(test_patterns))])
+        pae_box = np.array([[0.0 for y in range(len(by_person))] for z in range(len(test_patterns))])
+        for person in range(len(by_person)): # per subject:
+            mean_diff=np.array([[0.0 for x in range(16)] for y in range(18)])
+            stds=np.array([[0.0 for x in range(16)] for y in range(18)])
+            #[894, 423, 1367, 249, 939, 427, 590, 143, 912, 678, 1355, 580, 1043, 673, 1359, 736]
+            # go through subjects tests
             for test in range(len(by_person[person])):
                 for patt in range(len(test_patterns)): # check which pattern it is
                     if by_person[person][test][0]==test_patterns[patt]:
-                        #print(f"{test_patterns[patt]} - {all_names[test_patterns[patt]]}")
-                        #print(len(by_person[person][test]))
                         mean_diff[test] =  by_person[person][test][1:-1] - patt_means[patt]
-                sae_box[person][test] = np.mean(mean_diff[test])
-            
-            sae[person] = np.mean(sae_box[person][test])
-            #np.mean(mean_diff)
-            print(person)
-            print(sae_box[person])
-            
+                    
+                        pae_box[patt][person] = np.mean(mean_diff[test])
         
+        for patt in range(len(test_patterns)):
+            pae[patt]=np.mean(pae_box[patt])
         fig = plt.figure(figsize=(12,6))
         ax = fig.add_subplot()
-        ax.axhline(y=0,color='black', alpha=0.8, linewidth=1,label='0')
-        s_idx = np.array(np.arange(n_subjects))
-        s_idx=np.array([0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19],dtype=int)
-        print(s_idx)
-        ax.set(xticks=s_idx+1, xticklabels=[str(x) for x in s_idx])
-        for i in range(len(by_person)):
-            ax.scatter(np.full(len(sae_box[i]),i),sae_box[i], color='lightgreen', linewidth=0.5, marker='x')
-        ax.boxplot(sae_box)
-        ax.scatter(s_idx, sae, color='lightcoral', linestyle='-', marker='o', label="Subject Avg. Err.")
+        pidx=np.arange(16)+1
+
+        ax.axhline(y=0,color='black', alpha=0.6)
+        for i in range(len(test_patterns)):
+            ax.scatter(np.full(len(pae_box[i]),i+1),pae_box[i], color='lightcoral', linewidth=0.5, marker='x', alpha=0.6)
+        ax.boxplot(pae_box.T)
+        ax.scatter(pidx, pae,color='lightcoral', linestyle='-', marker='o', label="Pattern Avg. Err.")
         
-        ax.set_title(f"Subject v. Subject Average Error (all patts)")
-        ax.set_xlabel("Subject Pattern")
-        ax.set_ylabel("Average Error from Overall Mean Tapped Pattern")
-        plt.legend()
+        ax.set(xticks=pidx, xticklabels=[str(x) for x in test_patterns], ylim=(-0.6,0.6))
+        ax.set_title(f"Average Velocity Error from Mean by Pattern")
+        ax.set_xlabel("Test Pattern")
+        ax.set_ylabel("Difference from Mean (tap velocity)")
         plt.show()
