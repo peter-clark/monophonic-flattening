@@ -99,22 +99,23 @@ def make_pos_grid(data, sections, indices, all_names,names, _plot=False):
                 _x.append(x[i])
                 _y.append(y[i])
                 plt.text(x[i],y[i],str(i))
-        plt.scatter(_x, _y, c='orangered',s=12)
-        plt.title("Polyphonic Rhythm Space and Selected Patterns for Testing")
+        plt.scatter(_x, _y, c='orangered',s=12, marker='x')
+        plt.title("Polyphonic Rhythm Space and Selected Patterns for Testing", fontfamily='serif')
+        """
         #boi
-        plt.plot((1,1), (0,1), c='grey', linewidth=1) #right
-        plt.plot((1,0), (0,0), c='grey', linewidth=1) #bottom
-        plt.plot((1,0), (1,1), c='grey', linewidth=1) #top
-        plt.plot((0,0), (1,0), c='grey', linewidth=1) #left
+        plt.plot((1,1), (0,1), c='grey', linewidth=0.75, linestyle='--') #right
+        plt.plot((1,0), (0,0), c='grey', linewidth=0.75, linestyle='--') #bottom
+        plt.plot((1,0), (1,1), c='grey', linewidth=0.75, linestyle='--') #top
+        plt.plot((0,0), (1,0), c='grey', linewidth=0.75, linestyle='--') #left
         #verts
-        plt.plot((0.25,0.25), (0,1), c='grey', linewidth=1) #25%
-        plt.plot((0.5,0.5), (0,1), c='grey', linewidth=1) #50%
-        plt.plot((0.75,0.75), (0,1), c='grey', linewidth=1) #75%
+        plt.plot((0.25,0.25), (0,1), c='grey', linewidth=0.75, linestyle='--') #25%
+        plt.plot((0.5,0.5), (0,1), c='grey', linewidth=0.75, linestyle='--') #50%
+        plt.plot((0.75,0.75), (0,1), c='grey', linewidth=0.75, linestyle='--') #75%
         #horiz
-        plt.plot((0,1),(0.25,0.25), c='grey', linewidth=1) #25%
-        plt.plot((0,1),(0.5,0.5), c='grey', linewidth=1) #50%
-        plt.plot((0,1),(0.75,0.75), c='grey', linewidth=1) #75%
-
+        plt.plot((0,1),(0.25,0.25), c='grey', linewidth=0.75, linestyle='--') #25%
+        plt.plot((0,1),(0.5,0.5), c='grey', linewidth=0.75, linestyle='--') #50%
+        plt.plot((0,1),(0.75,0.75), c='grey', linewidth=0.75, linestyle='--') #75%
+        """
         #plt.plot((x_min,y_min),(x_min,0), c='grey')
         #plt.plot((x_min,y_min),(x_max,0), c='grey')
 

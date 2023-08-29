@@ -156,7 +156,7 @@ alg_scores[3]=rsqr
 mape /= 16
 alg_scores[4]=mape
 test_names = ["mae","mse","rmse","rsqr","mape"]
-_printtest = False
+_printtest = True
 if _printtest:
     # Print error-test results
     for tn in range(len(test_names)): # iterate through test types
@@ -165,7 +165,7 @@ if _printtest:
             print(f"{alg_scores[tn][algtype]:1.4f} <- {alg_names[algtype]}")
 
 
-_printANOVA = False
+_printANOVA = True
 # ANOVA
 f_stat,p_val = stats.f_oneway(data_anova[0],data_anova[1],data_anova[2],data_anova[3],data_anova[4],data_anova[5])
 if _printANOVA:
@@ -193,7 +193,7 @@ if _tukey:
     tukey_df = pd.DataFrame(data=tukey._results_table.data[1:], columns=tukey._results_table.data[0])
 
     # Set the desired precision for p-adj values
-    pd.set_option('display.float_format', '{:.4f}'.format)
+    pd.set_option('display.float_format', '{:.6f}'.format)
 
     # Print the DataFrame
     if _printANOVA:
@@ -471,8 +471,8 @@ if _byperson:
         # Box plot of MAE of both control patterns
         fig2 = plt.figure(figsize=(12,6))
         axx = fig2.add_subplot()
-        print(f"{len(avgs[9])}-{avgs[9]}")
-        print(f"{len(control_patterns[:,0])}-{control_patterns[:,0]}")
+        #print(f"{len(avgs[9])}-{avgs[9]}")
+        #print(f"{len(control_patterns[:,0])}-{control_patterns[:,0]}")
         
         ax.scatter(s_idx+1,(control_differences[:,0]-avgs[9]),color="purple",marker='p', label='Subject Control Error (678)')
 
