@@ -546,7 +546,7 @@ if _tapcalibration:
     pos_high = subj_idx + 0.25
     width = 0.20
 
-    ax1.axhline(y=0,color='black', alpha=0.6, linestyle='--', label='Middle of Target Range')
+    line0=ax1.axhline(y=0,color='black', alpha=0.6, linestyle='--', label='Middle of Target Range')
     p1 = (n_subjects_clean+1,0.0)
     p2 = (0.0,float(0.33/2))
     rect = mpl.patches.Rectangle((p2[0], p1[1]), p1[0] - p2[0], p2[1] - p1[1], linewidth=1, edgecolor='darkgreen', facecolor='lightgreen', alpha=0.15, linestyle='--', label='Target Range (+/-)')
@@ -571,7 +571,20 @@ if _tapcalibration:
     ax1.set_title(f"Subject Mean Abs. Err. for Tap Consistency", fontsize=14, fontfamily='serif',fontweight='book')
     ax1.set_xlabel("Subject #", fontsize=12, fontfamily='sans-serif')
     ax1.set_ylabel("Mean Tapped Error", fontsize=12, fontfamily='sans-serif')
-    ax1.legend()
+
+    line1, = ax1.plot([1,1], color='blue')
+    line2, = ax1.plot([1,1], color='green')
+    line3, = ax1.plot([1,1], color='red')
+
+    # Add the legend
+    #ax.legend((line1, line2, line3), ('data1', 'data2', 'data3'), loc='upper right')
+
+    # Remove the dummy lines
+    line1.set_visible(False)
+    line2.set_visible(False)
+    line3.set_visible(False)
+
+    ax1.legend([bp1["boxes"][0], bp2["boxes"][0],bp3["boxes"][0], rect, line0], ('Soft Tap Range', 'Mid Tap Range', 'Hard Tap Range', 'Target Range (+/-)', 'Middle of Target Range'))
     fig.tight_layout()
     plt.show()
 
