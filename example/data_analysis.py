@@ -49,7 +49,7 @@ _idx = [int(x) for x in range(16)]
 idx = np.array(_idx, dtype=int)
 idx = idx + 1
 data_anova=[[0.0 for x in range(len(data)-1)] for y in range(6)]
-n_subjects=20
+n_subjects=24
 by_person =[[[0.0 for x in range(17)] for y in range(18)] for z in range(n_subjects)] # [patt# tapresults]x18tests
 # Calculate 5th 6th alg
 for test in range(len(data)):

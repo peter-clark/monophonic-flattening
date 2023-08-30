@@ -21,8 +21,8 @@ with warnings.catch_warnings():
 _coordinates = False
 _controlcomparison = False
 _subjectaverageerror = False
-_patternaverageerror = False
-_tapcalibration = True
+_patternaverageerror = True
+_tapcalibration = False
 
 ####
 n_subjects=25
@@ -393,20 +393,25 @@ if _subjectaverageerror:
     idx = np.array(np.arange(n_subjects_clean))
     labels = idx+1
     custom_colors = mpl.cm.get_cmap('tab20b', n_subjects_clean)
-
-    ax.axhline(y=0,color='black', alpha=0.8, linewidth=1,label='Mean Tapped Velocity', linestyle='--')
+    meanline=0.0
+    sd=0.0
+    line0=ax.axhline(y=0,color='black', alpha=0.8, linewidth=1,label='Mean Tapped Velocity', linestyle='-')
     for n in range(n_subjects_clean):
         #print(f"{len(mean_diff_box[n])} {mean_diff_raw[n]} ")
+        meanline+=np.mean(mean_diff_box[n])
+        sd+=np.std(mean_diff_box[n])
         ax.scatter(np.full(len(mean_diff_box[n]), n+1), mean_diff_box[n], color=custom_colors.colors[n], linestyle='-', marker='x', label="Subject Mean Abs. Err.", linewidth=0.8)
+    line1=ax.axhline(y=meanline/n_subjects_clean, color='lightgray', alpha=1, linewidth=1, label='Mean Abs Subject Error', linestyle='--')    
+    print(f"Mean Subject Error: {meanline/n_subjects_clean} ({sd/n_subjects_clean})")
     bp=ax.boxplot(mean_diff_box.T, patch_artist=True, boxprops=dict(alpha=0.3, facecolor='lightcoral', edgecolor='black'))
     for box, color in zip(bp['boxes'], custom_colors.colors):
         box.set_alpha=0.4
         box.set_facecolor(color)
-    
-    ax.set_title(f"Subject v. Subject Mean Abs. Error (all patts)", fontsize=14, fontfamily='serif',fontweight='book')
+    ax.set_title(f"Subject v. Subject Mean Abs. Difference (all patts)", fontsize=14, fontfamily='serif',fontweight='book')
     ax.set_xlabel("Subject #", fontsize=12, fontfamily='sans-serif')
-    ax.set_ylabel("MAE in tap velocity over all patterns", fontsize=12, fontfamily='sans-serif')
+    ax.set_ylabel("Mean Absolute Difference in Tap Velocity", fontsize=12, fontfamily='sans-serif')
     ax.set(xticks=idx+1, xticklabels=[str(x) for x in labels], ylim=(-0.1,0.6))
+    ax.legend([line0, line1],("Mean Tapped Velocity","Mean Abs. Subject Difference"),loc='upper left',prop={'size':8})
     #plt.show()
 
 #--2--#
@@ -416,7 +421,7 @@ if _subjectaverageerror:
     labels = idx+1
     custom_colors = mpl.cm.get_cmap('tab20b', n_subjects_clean)
 
-    ax1.axhline(y=0,color='black', alpha=0.8, linewidth=1,label='Mean Tapped Velocity', linestyle='--')
+    line0=ax1.axhline(y=0,color='black', alpha=0.7, linewidth=1,label='Mean Tapped Velocity', linestyle='--')
     for n in range(n_subjects_clean):
         #print(f"{len(mean_diff_raw[n])} {mean_diff_raw[n]} ")
         ax1.scatter(np.full(len(mean_diff_raw_box[n]), n+1), mean_diff_raw_box[n], color=custom_colors.colors[n], linestyle='-', marker='x', label="Subject Avg. Err.", linewidth=0.8)
@@ -424,11 +429,11 @@ if _subjectaverageerror:
     for box, color in zip(bp['boxes'], custom_colors.colors):
         box.set_alpha=0.4
         box.set_facecolor(color)
-    
-    ax1.set_title(f"Non-Outlier Subjects v. Subject Mean Error (all patts)", fontsize=14, fontfamily='serif',fontweight='book')
+    ax1.set_title(f"Subjects v. Subject Mean Difference (all patts)", fontsize=14, fontfamily='serif',fontweight='book')
     ax1.set_xlabel("Subject #", fontsize=12, fontfamily='sans-serif')
-    ax1.set_ylabel("Mean Error in tap velocity over all patterns", fontsize=12, fontfamily='sans-serif')
+    ax1.set_ylabel("Mean Difference in Tap Velocity", fontsize=12, fontfamily='sans-serif')
     ax1.set(xticks=idx+1, xticklabels=[str(x) for x in labels], ylim=(-0.4,0.5))
+    ax1.legend([line0],["Mean Tapped Velocity"],loc='upper left',prop={'size':8})
 
     fig.tight_layout()
     plt.show()
@@ -446,10 +451,10 @@ if _patternaverageerror:
     fig, (ax, ax1) = plt.subplots(2,1,figsize=(12,8))
     #ax = fig.add_subplot()
     pidx=np.arange(16)+1
-    custom_colors_patterns = mpl.cm.get_cmap('cividis',96) # 24 to avoid yellows!
+    custom_colors_patterns = mpl.cm.get_cmap('tab20b',16) # 24 to avoid yellows!
     color='darkslategray' #custom_colors_patterns.colors[i]
 
-    ax.axhline(y=0,color='black', alpha=0.6, linestyle='--', label='Mean Tapped Velocity')
+    line=ax.axhline(y=0,color='black', alpha=0.6, linestyle='--', label='Mean Tapped Velocity')
     for i in range(len(test_patterns)):
         #a = np.min([(float(i/len(test_patterns))+0.2),1])
         a=0.7
@@ -460,13 +465,36 @@ if _patternaverageerror:
         box.set_facecolor(color)
     
     ax.set(xticks=pidx, xticklabels=[str(x) for x in test_patterns], ylim=(-0.1,0.6))
-    ax.set_title(f"Mean Absolute Error from Subject Tapped Patterns", fontsize=14, fontfamily='serif',fontweight='book')
+    ax.set_title(f"Mean Absolute Difference from Subject Tapped Patterns", fontsize=14, fontfamily='serif',fontweight='book')
     ax.set_xlabel("Test Pattern", fontsize=12)
-    ax.set_ylabel("Mean Absolute Error (tap velocity)", fontsize=12, fontfamily='serif')
+    ax.set_ylabel("Mean Absolute Difference (tap velocity)", fontsize=12, fontfamily='serif')
+    ax.legend([line],["Mean Tapped Velocity"],loc='upper left')
+    _tukey = True
+    f_stat,p_val=stats.f_oneway(*patt_mean_diff_raw.T)
+    print(f_stat)
+    print(p_val)
+    if _tukey:
+        patt_tukey=[]
+        pt_labels = []
+        for i in range(16):
+            patt_tukey += [patt_mean_diff_box[i]]
+            pt_labels += [str(i)]*n_subjects_clean
+        print(len(pt_labels))
+        patt_tukey = patt_mean_diff_raw.flatten()
+        data = {
+            'distance': patt_tukey,  # Flatten the array
+            'test_type': pt_labels
+        }
+        df = pd.DataFrame(data)
+        tukey = pairwise_tukeyhsd(df['distance'], df['test_type'], alpha=0.05)
+        tukey_df = pd.DataFrame(data=tukey._results_table.data[1:], columns=tukey._results_table.data[0])
+        significant_results = tukey_df[tukey_df.reject==True]
+        print(significant_results)
+        #print(tukey_df)
 
 #--2--#
     pidx=np.arange(16)+1
-    ax1.axhline(y=0,color='black', alpha=0.6, linestyle='--', label='Mean Tapped Velocity')    
+    line1=ax1.axhline(y=0,color='black', alpha=0.6, linestyle='--', label='Mean Tapped Velocity')    
     for i in range(len(test_patterns)):
         #a = np.min([(float(i/len(test_patterns))+0.2),1])
         a=0.7
@@ -477,11 +505,153 @@ if _patternaverageerror:
         box.set_facecolor(color)
     
     ax1.set(xticks=pidx, xticklabels=[str(x) for x in test_patterns], ylim=(-0.4,0.5))
-    ax1.set_title(f"Mean Error from Subject Tapped Patterns", fontsize=14, fontfamily='serif',fontweight='book')
+    ax1.set_title(f"Mean Difference from Subject Tapped Patterns", fontsize=14, fontfamily='serif',fontweight='book')
     ax1.set_xlabel("Test Pattern", fontsize=12, fontfamily='sans-serif')
-    ax1.set_ylabel("Mean Error (tap velocity)", fontsize=12, fontfamily='sans-serif')
-    fig.tight_layout()
+    ax1.set_ylabel("Mean Difference (tap velocity)", fontsize=12, fontfamily='sans-serif')
+    ax1.legend([line1],["Mean Tapped Velocity"],loc='upper left')
+    fig.tight_layout() 
     plt.show()
+
+
+
+    _firstplot=False
+    _secondplot=False
+    _thirdplot=False # patterns 4x4
+    if _firstplot:
+        idx=np.arange(16)
+        for i in range(16):
+            plt.errorbar(idx,patt_means[i],yerr=patt_stds[i], color='grey', linewidth=1)
+            plt.plot(idx,patt_means[i], marker="o", color='lightcoral', linestyle='-', label="Avg. Tap")
+            plt.plot(idx, by_alg[2][i], marker='x', linestyle='--',color='deepskyblue', label='Cont.2 (DSM)')
+            #plt.plot(idx, by_alg[i][0], marker='x', linestyle='--', color='mediumpurple',label='Cont.1 (DS)')
+            plt.title(f"#{test_patterns[i]} - {all_names[int(test_patterns[i])]}\n vs. Algorithm Predictions")
+            plt.ylabel("Normalized Velocity")
+            plt.xlabel("Step in Pattern")
+            plt.legend()
+            #plt.plot(idx,patt_stds)
+            plt.show()
+    
+    if _secondplot:
+        alg = 2                 #  <---- pick flattening alg here
+        idx=np.arange(16)
+        for j in range(4):
+            i=j*4
+            fig, axes = plt.subplots(2, 2, figsize=(12, 7))
+            p1=axes[0,0]
+            p2=axes[0,1]
+            p3=axes[1,0]
+            p4=axes[1,1]
+            
+            #topleft
+            p1.errorbar(idx, patt_means[i],yerr=patt_stds[i], color='grey', linewidth=1)
+            p1.plot(idx,patt_means[i], marker="o", color='lightcoral', linestyle='-', label="Avg. Tap")
+            line1,=p1.plot(idx,patt_means[i], marker="o", color='lightcoral', linestyle='-', label="Avg. Tap")
+            p1.plot(idx, by_alg[alg][i], marker='x', linestyle='--',color='deepskyblue', label='Cont.2 (DSM)')
+            line2,=p1.plot(idx, by_alg[alg][i], marker='x', linestyle='--',color='deepskyblue', label='Cont.2 (DSM)')
+            p1.set_title(f"#{test_patterns[i]} - {all_names[int(test_patterns[i])]}")
+            p1.set_ylabel("Normalized Velocity")
+            p1.set_xlabel("Step in Pattern")
+            p1.set(ylim=[0.0,1.0])
+            p1.grid(color='lightgray', linestyle='-', linewidth=0.6, alpha=0.7, axis='y')
+
+            
+            #topright
+            p2.errorbar(idx, patt_means[i+1],yerr=patt_stds[i+1], color='grey', linewidth=1)
+            p2.plot(idx,patt_means[i+1], marker="o", color='lightcoral', linestyle='-', label="Avg. Tap")
+            p2.plot(idx, by_alg[alg][i+1], marker='x', linestyle='--',color='deepskyblue', label='Cont.2 (DSM)')
+            p2.set_title(f"#{test_patterns[i+1]} - {all_names[int(test_patterns[i+1])]}")
+            p2.set_ylabel("Normalized Velocity")
+            p2.set_xlabel("Step in Pattern")
+            p2.set(ylim=[0.0,1.0])
+            p2.grid(color='lightgray', linestyle='-', linewidth=0.6, alpha=0.7, axis='y')
+
+            #bottom left
+            p3.errorbar(idx, patt_means[i+2],yerr=patt_stds[i+2], color='grey', linewidth=1)
+            p3.plot(idx,patt_means[i+2], marker="o", color='lightcoral', linestyle='-', label="Avg. Tap")
+            p3.plot(idx, by_alg[alg][i+2], marker='x', linestyle='--',color='deepskyblue', label='Cont.2 (DSM)')
+            p3.set_title(f"#{test_patterns[i+2]} - {all_names[int(test_patterns[i+2])]}")
+            p3.set_ylabel("Normalized Velocity")
+            p3.set_xlabel("Step in Pattern")
+            p3.set(ylim=[0.0,1.0])
+            p3.grid(color='lightgray', linestyle='-', linewidth=0.6, alpha=0.7, axis='y')
+
+            #bottom right
+            p4.errorbar(idx, patt_means[i+3],yerr=patt_stds[i+3], color='grey', linewidth=1)
+            p4.plot(idx,patt_means[i+3], marker="o", color='lightcoral', linestyle='-', label="Avg. Tap")
+            p4.plot(idx, by_alg[alg][i+3], marker='x', linestyle='--',color='deepskyblue', label='Cont.2 (DSM)')
+            p4.set_title(f"#{test_patterns[i+3]} - {all_names[int(test_patterns[i+3])]}")
+            p4.set_ylabel("Normalized Velocity")
+            p4.set_xlabel("Step in Pattern")
+            p4.set(ylim=[0.0,1.0])
+            p4.grid(color='lightgray', linestyle='-', linewidth=0.6, alpha=0.7, axis='y')
+
+            plt.suptitle("Continuous2 (DSM) vs Average Tapped Pattern")
+            fig.legend(handles=[line1,line2], loc='upper left', labels=['Avg. Tap','Cont.2 (DSM)'])
+            fig.tight_layout()
+            plt.show()
+
+    if _thirdplot:                #  <---- pick flattening alg here
+        idx=np.arange(16)
+        idx=idx+1
+        for j in range(4):
+            i=j*4
+            fig, axes = plt.subplots(2, 2, figsize=(12, 7))
+            p1=axes[0,0]
+            p2=axes[0,1]
+            p3=axes[1,0]
+            p4=axes[1,1]
+            
+            #topleft
+            p1.boxplot(by_pattern[i,:],widths=0.4, patch_artist=True, showfliers=False, boxprops=dict(alpha=0.2, facecolor='lightcoral'), capprops=dict(color='lightcoral'),whiskerprops=dict(color='lightcoral'))
+            #p1.errorbar(idx, patt_means[i],yerr=patt_stds[i], color='grey', linewidth=1,elinewidth=1,capsize=3)
+            p1.plot(idx,patt_means[i], marker="o", color='lightcoral', linestyle='-', label="Avg. Tap",linewidth=1)
+            line1,=p1.plot(idx,patt_means[i], color='lightcoral', linestyle='-', label="Avg. Tap")
+            #p1.plot(idx, by_alg[alg][i], marker='x', linestyle='--',color='deepskyblue', label='Cont.2 (DSM)')
+            #line2,=p1.plot(idx, by_alg[alg][i], marker='x', linestyle='--',color='deepskyblue', label='Cont.2 (DSM)')
+            p1.set_title(f"#{test_patterns[i]} - {all_names[int(test_patterns[i])]}")
+            p1.set_ylabel("Normalized Velocity")
+            p1.set_xlabel("Step in Pattern")
+            p1.set(ylim=[0.0,1.0])
+            p1.grid(color='lightgray', linestyle='-', linewidth=0.6, alpha=0.7, axis='y')
+
+            
+            #topright
+            p2.boxplot(by_pattern[i,:],widths=0.4, patch_artist=True, showfliers=False, boxprops=dict(alpha=0.2, facecolor='lightcoral'), capprops=dict(color='lightcoral'),whiskerprops=dict(color='lightcoral'))
+            #p2.errorbar(idx, patt_means[i+1],yerr=patt_stds[i+1], color='grey', linewidth=1)
+            p2.plot(idx,patt_means[i+1], marker="o", color='lightcoral', linestyle='-', label="Avg. Tap")
+            #p2.plot(idx, by_alg[alg][i+1], marker='x', linestyle='--',color='deepskyblue', label='Cont.2 (DSM)')
+            p2.set_title(f"#{test_patterns[i+1]} - {all_names[int(test_patterns[i+1])]}")
+            p2.set_ylabel("Normalized Velocity")
+            p2.set_xlabel("Step in Pattern")
+            p2.set(ylim=[0.0,1.0])
+            p2.grid(color='lightgray', linestyle='-', linewidth=0.6, alpha=0.7, axis='y')
+
+            #bottom left
+            p3.boxplot(by_pattern[i,:],widths=0.4, patch_artist=True, showfliers=False, boxprops=dict(alpha=0.2, facecolor='lightcoral', edgecolor='coral'), capprops=dict(color='lightcoral'),whiskerprops=dict(color='lightcoral'))
+            #p3.errorbar(idx, patt_means[i+2],yerr=patt_stds[i+2], color='grey', linewidth=1)
+            p3.plot(idx,patt_means[i+2], marker="o", color='lightcoral', linestyle='-', label="Avg. Tap")
+            #p3.plot(idx, by_alg[alg][i+2], marker='x', linestyle='--',color='deepskyblue', label='Cont.2 (DSM)')
+            p3.set_title(f"#{test_patterns[i+2]} - {all_names[int(test_patterns[i+2])]}")
+            p3.set_ylabel("Normalized Velocity")
+            p3.set_xlabel("Step in Pattern")
+            p3.set(ylim=[0.0,1.0])
+            p3.grid(color='lightgray', linestyle='-', linewidth=0.6, alpha=0.7, axis='y')
+
+            #bottom right
+            p4.boxplot(by_pattern[i,:],widths=0.4, patch_artist=True, showfliers=False, boxprops=dict(alpha=0.2, facecolor='lightcoral', edgecolor='coral'), capprops=dict(color='lightcoral'),whiskerprops=dict(color='lightcoral'))
+            #p4.errorbar(idx, patt_means[i+3],yerr=patt_stds[i+3], color='grey', linewidth=1)
+            p4.plot(idx,patt_means[i+3], marker="o", color='lightcoral', linestyle='-', label="Avg. Tap")
+            #p4.plot(idx, by_alg[alg][i+3], marker='x', linestyle='--',color='deepskyblue', label='Cont.2 (DSM)')
+            p4.set_title(f"#{test_patterns[i+3]} - {all_names[int(test_patterns[i+3])]}")
+            p4.set_ylabel("Normalized Velocity")
+            p4.set_xlabel("Step in Pattern")
+            p4.set(ylim=[0.0,1.0])
+            p4.grid(color='lightgray', linestyle='-', linewidth=0.6, alpha=0.7, axis='y')
+
+            plt.suptitle("Subjects Mean Tapped Values by Pattern",fontsize=14, fontfamily='serif',fontweight='book')
+            fig.legend(handles=[line1], loc='upper left', labels=['Mean. Tap Value'])
+            fig.tight_layout()
+            plt.show()
 
 
 #------------------------------------------------------#
@@ -512,8 +682,8 @@ if _tapcalibration:
     ax.plot(tapidx+1, mean_mid, color=colors_dark[1], label='Mean Tap Mid')
     ax.plot(tapidx+1, mean_high, color=colors_dark[0], label='Mean Tap High')
 
-    ax.axhline(y=42,color='seagreen', alpha=0.6, linestyle='--', label='SOFT/MID Boundary')
-    ax.axhline(y=84,color='slateblue', alpha=0.6, linestyle='--', label='MID/HARD Boundary')
+    ax.axhline(y=42,color='seagreen', alpha=0.6, linestyle='--', label='Low / Mid Boundary')
+    ax.axhline(y=84,color='slateblue', alpha=0.6, linestyle='--', label='Mid / High Boundary')
 
     ax.set(ylim=[0,127], yticks=[0,42,84,127], xticks=tapidx+1)
     ax.set_title(f"Progressive Tapping Consistency over all Subjects", fontsize=14, fontfamily='serif',fontweight='book')
@@ -567,24 +737,21 @@ if _tapcalibration:
         ax1.plot(subj_idx[k], np.mean(np.abs(taps_mid[k]-63))/127, color=colors_dark[1], marker='x', alpha=1)
         ax1.plot(pos_high[k], np.mean(np.abs(taps_high[k]-105))/127, color=colors_dark[0], marker='x', alpha=1)
     
+    # Title and axes values
     ax1.set(xlim=[0,n_subjects_clean+1], ylim=[-0.06,1.0], xticks=subj_idx, xticklabels=subj_idx, yticks=np.arange(start=0.0,stop=1.0,step=0.1))
     ax1.set_title(f"Subject Mean Abs. Err. for Tap Consistency", fontsize=14, fontfamily='serif',fontweight='book')
     ax1.set_xlabel("Subject #", fontsize=12, fontfamily='sans-serif')
     ax1.set_ylabel("Mean Tapped Error", fontsize=12, fontfamily='sans-serif')
-
+    
+    # Add and Remove the dummy lines to make legend work
     line1, = ax1.plot([1,1], color='blue')
     line2, = ax1.plot([1,1], color='green')
     line3, = ax1.plot([1,1], color='red')
-
-    # Add the legend
-    #ax.legend((line1, line2, line3), ('data1', 'data2', 'data3'), loc='upper right')
-
-    # Remove the dummy lines
     line1.set_visible(False)
     line2.set_visible(False)
     line3.set_visible(False)
 
-    ax1.legend([bp1["boxes"][0], bp2["boxes"][0],bp3["boxes"][0], rect, line0], ('Soft Tap Range', 'Mid Tap Range', 'Hard Tap Range', 'Target Range (+/-)', 'Middle of Target Range'))
+    ax1.legend([bp1["boxes"][0], bp2["boxes"][0],bp3["boxes"][0], rect, line0], ('Low Tap Range', 'Mid Tap Range', 'High Tap Range', 'Target Range (+/-)', 'Middle of Target Range'))
     fig.tight_layout()
     plt.show()
 
@@ -592,8 +759,8 @@ if _tapcalibration:
 # By position: |0-50|51-100| , |0-33|34-66|67-100|, |0-25|26-50|51-75|76-100| (2/3/4)
 # By test: (mid test should have least error, but show it). This will tell us if participants improved over the trials.
 
-    _printANOVA = False
-    f_stat,p_val = stats.f_oneway(_taps_high,_taps_mid,_taps_low)
+    _printANOVA = True
+    f_stat,p_val = stats.f_oneway(np.mean(_taps_high, axis=1),np.mean(_taps_mid, axis=1),np.mean(_taps_low, axis=1))
     if _printANOVA:
         print(f_stat)
         print(p_val)
@@ -603,66 +770,64 @@ if _tapcalibration:
     # Tukey's HSD
     _tukey = True
     if _tukey:
-        # Reorder data for tukey
-        pre_df=[]
-        for j in range(len(_taps_high)):
-            pre_df.append([0, _taps_high[j]])
-        for j in range(len(_taps_mid)):
-            pre_df.append([1, _taps_mid[j]])
-        for j in range(len(_taps_low)):
-            pre_df.append([2, _taps_low[j]])
-
-        # Do Tukey's HSD
-        test_type=[row[0] for row in pre_df]
-        dist_val = [row[1] for row in pre_df]
-        df = pd.DataFrame({'test_type': test_type, 'distance':dist_val})
-        tukey = pairwise_tukeyhsd(endog=df["distance"],groups=df['test_type'], alpha=0.05)
-        np.set_printoptions(precision=6)
-        #print(tukey)
+        _all_taps = np.concatenate((np.mean(_taps_high, axis=1), np.mean(_taps_mid, axis=1), np.mean(_taps_low, axis=1)), axis=0)
+        _all_taps_labels = ['high']*len(_taps_high) + ['mid']*len(_taps_mid) + ['low']*len(_taps_low)
+        data = {
+            'distance': _all_taps.ravel(),  # Flatten the array
+            'test_type': _all_taps_labels
+        }
+        df = pd.DataFrame(data)
+        tukey = pairwise_tukeyhsd(df['distance'], df['test_type'], alpha=0.05)
         tukey_df = pd.DataFrame(data=tukey._results_table.data[1:], columns=tukey._results_table.data[0])
 
+        # Calculate the split points for 25% intervals
+        split_points = [int(len(_all_taps) * 0.25),
+                        int(len(_all_taps) * 0.5),
+                        int(len(_all_taps) * 0.75)]
+
+        # Split the combined array into quarters
+        all_quarters = np.split(_all_taps, split_points)
+
+        # Create labels for each quarter
+        labels = ['Q1'] * len(all_quarters[0]) + ['Q2'] * len(all_quarters[1]) + ['Q3'] * len(all_quarters[2]) + ['Q4'] * len(all_quarters[3])
+
+        # Perform Tukey's HSD test on the quarters
+        tukey_result = pairwise_tukeyhsd(np.concatenate(all_quarters), labels, alpha=0.05)
+
+        tukey_df2 = pd.DataFrame(data=tukey_result._results_table.data[1:], columns=tukey_result._results_table.data[0])
+
+        print("Tukey's HSD Results for Quarters:")
+        print(tukey_result)
         # Set the desired precision for p-adj values
         pd.set_option('display.float_format', '{:.6f}'.format)
-
+        np.set_printoptions(precision=6)
+        print(f"Mean Error:\n High: {np.mean(np.mean(_taps_high, axis=1))}({np.std(np.mean(_taps_high, axis=1))} \n Mid: {np.mean(np.mean(_taps_mid, axis=1))}({np.std(np.mean(_taps_mid, axis=1))})\n Low: {np.mean(np.mean(_taps_low, axis=1))}({np.std(np.mean(_taps_low, axis=1))}")
         # Print the DataFrame
         if _printANOVA:
             print(tukey_df)
+            print(tukey_df2)
+        anova_result = stats.f_oneway(all_quarters[0], all_quarters[1], all_quarters[2], all_quarters[3])
 
-#### TODO: 
-
-### SUBJECT ERROR (NOT MAE) vs ALL PATTERNS [>>>>>>>>>>>>>>>]
-### PATTERN ERROR (NOT MAE) vs ALL SUBJECTS [>>>>>>>>>>>>>>>]
-# Allows us to see direction of errors
-
-### SUBJECT V CALIBRATION TAP ERROR
-## (X: Subject, Y: MAE for target range (middle of range?)), 3 datapoints per subject [>>>>>>>>>>>>>>>]
-
+        print("ANOVA Result:")
+        print("F-value:", anova_result.statistic)
+        print("p-value:", anova_result.pvalue)
+        for i in range(len(all_quarters)):
+            print(f"Q{i}: {np.mean(all_quarters[i])} ({np.std(all_quarters[i])})")
 
 
-### PATTERN TAPPED ERROR v RHYTHM SPACE & GENRE
-
-### GENERAL ERROR FOR SUBJECTS V ALGORITHMS
-## ANOVA and Tukeys HSD for MAE of Algorithms vs Subjects
-# Gives us comparison for which algorithm best reflected subjects & was sign. better than others
-# ------> Needs to be done with cleaned data!
-'''
 mse = np.array([0.0 for x in range(6)], dtype=float)
 mae = np.array([0.0 for x in range(6)], dtype=float)
 rmse = np.array([0.0 for x in range(6)], dtype=float)
 rsqr = np.array([0.0 for x in range(6)], dtype=float)
 mape = np.array([0.0 for x in range(6)], dtype=float)
 alg_scores = np.array([[0.0 for x in range(6)] for x in range(5)])
-for i in range(len(avgs)):
-    # Can limit to max of tapped inputs
-    # algs[i] = np.where(algs[i]<np.max(avgs[i]),algs[i],np.max(avgs[i]))
-    for j in range(len(algs[0])):
-        mse[j]+=sk.mean_squared_error(avgs[i], algs[i][j])
-        mae[j]+=sk.mean_absolute_error(avgs[i], algs[i][j])
-        rsqr[j]+=sk.r2_score(avgs[i], algs[i][j])
-        rmse[j]+=pow(np.abs(sk.mean_squared_error(avgs[i], algs[i][j])),0.5)
-        mape[j]+=sk.mean_absolute_percentage_error(avgs[i],algs[i][j])
-
-# Avg out error readings
+for patt in range(len(test_patterns)):
+    for alg in range(len(by_alg)):
+        mse[alg]+=sk.mean_squared_error(patt_means[i],by_alg[alg][i])
+        mae[alg]+=sk.mean_absolute_error(patt_means[i],by_alg[alg][i])
+        rsqr[alg]+=sk.r2_score(patt_means[i],by_alg[alg][i])
+        rmse[alg]+=pow(np.abs(sk.mean_squared_error(patt_means[i],by_alg[alg][i])),0.5)
+        mape[alg]+=sk.mean_absolute_percentage_error(patt_means[i],by_alg[alg][i])
 mae /= 16
 alg_scores[0]=mae
 mse /= 16
@@ -674,7 +839,9 @@ alg_scores[3]=rsqr
 mape /= 16
 alg_scores[4]=mape
 test_names = ["mae","mse","rmse","rsqr","mape"]
-_printtest = True
+alg_names = ["cont1","disc1","cont2","disc2","semicont1","semicont2"]
+
+_printtest = False
 if _printtest:
     # Print error-test results
     for tn in range(len(test_names)): # iterate through test types
@@ -682,41 +849,73 @@ if _printtest:
         for algtype in range(len(alg_names)): # iterate through 6 alg types
             print(f"{alg_scores[tn][algtype]:1.4f} <- {alg_names[algtype]}")
 
+_tukeyalg=True
+if _tukeyalg:
+        _by_alg = np.array([[[0.0 for x in range(16)] for y in range(16)] for z in range(7)], dtype=float) # algs
+        _by_alg[0]=patt_means
+        _by_alg[1:]=by_alg
+        __by_alg = np.array([[0.0 for y in range(16)] for z in range(7)], dtype=float) # algs
+        __by_alg[0]=np.mean(patt_means, axis=1)
+        __by_alg[1:]=np.mean(by_alg, axis=1)
+        print(_by_alg.shape)
+        patt_tukey=[]
+        pt_labels = []
+        pt_labels += ["patt_mean"]*256
+        _pt_labels = []
+        _pt_labels += ["patt_mean"]*16
+        for i in range(len(alg_names)):
+            pt_labels += [str(alg_names[i])]*256
+            _pt_labels += [str(alg_names[i])]*16
 
-_printANOVA = True
-# ANOVA
-f_stat,p_val = stats.f_oneway(data_anova[0],data_anova[1],data_anova[2],data_anova[3],data_anova[4],data_anova[5])
-if _printANOVA:
-    print(f"{test_patterns[i]} ANOVA: ")
-    print(f"F-Statistics: {f_stat:1.4f}")
-    print(f"P-Values: {p_val:1.6f}")
+        print(len(pt_labels))
 
-# Tukey's HSD
-_tukey = True
-if _tukey:
-    # Reorder data for tukey
-    pre_df=[]
-    for i in range(6):
-        #print(f"len d_anova {len(data_anova[i])}")
-        for j in range(len(data_anova[i])):
-            pre_df.append([i, data_anova[i][j]])
+        patt_tukey = _by_alg.flatten()
+        print(len(patt_tukey))
+        data = {
+            'distance': patt_tukey,  # Flatten the array
+            'test_type': pt_labels
+        }
+        df = pd.DataFrame(data)
+        tukey = pairwise_tukeyhsd(df['distance'], df['test_type'], alpha=0.05)
+        tukey_df = pd.DataFrame(data=tukey._results_table.data[1:], columns=tukey._results_table.data[0])
+        #significant_results = tukey_df[tukey_df.reject==True]
+        significant_results=tukey_df
+        print(significant_results)
+        #print(tukey_df)
+        num_groups = _by_alg.shape[0]
+        cohens_d = np.zeros((num_groups, num_groups))
 
-    # Do Tukey's HSD
-    alg_val=[row[0] for row in pre_df]
-    dist_val = [row[1] for row in pre_df]
-    df = pd.DataFrame({'algorithm': alg_val, 'distance':dist_val})
-    tukey = pairwise_tukeyhsd(endog=df["distance"],groups=df['algorithm'], alpha=0.05)
-    np.set_printoptions(precision=6)
-    #print(tukey)
-    tukey_df = pd.DataFrame(data=tukey._results_table.data[1:], columns=tukey._results_table.data[0])
+        for i in range(num_groups):
+            for j in range(i + 1, num_groups):
+                group1_mean = np.mean(_by_alg[i])
+                group2_mean = np.mean(_by_alg[j])
+                group1_std = np.std(_by_alg[i], ddof=1)  # Use ddof=1 for sample standard deviation
+                group2_std = np.std(_by_alg[j], ddof=1)
+                pooled_std = np.sqrt(((group1_std ** 2 + group2_std ** 2) / 2))
+                
+                cohens_d[i, j] = (group1_mean - group2_mean) / pooled_std
+                cohens_d[j, i] = -cohens_d[i, j]  # Cohen's d is symmetric
 
-    # Set the desired precision for p-adj values
-    pd.set_option('display.float_format', '{:.6f}'.format)
+        # 'cohens_d' now contains the Cohen's d values for pairwise comparisons
+        print("Cohen's d values:")
+        alg_names2 = ["patt_means","cont1","disc1","cont2","disc2","semicont1","semicont2"]
+        for i in range(num_groups):
+            for j in range(i + 1, num_groups):
+                group1 = f"Group {alg_names2[i]}"
+                group2 = f"Group {alg_names2[j]}"
+                d_value = cohens_d[i, j]
+                print(f"{group1} vs {group2}: {d_value:.4f}")
 
-    # Print the DataFrame
-    if _printANOVA:
-        print(tukey_df)
+        cv_values = np.zeros(num_groups)
 
-        
-'''
-###  
+        for i in range(num_groups):
+            group_mean = np.mean(_by_alg[i])
+            group_std = np.std(_by_alg[i], ddof=1)
+            _group_mean = np.mean(_by_alg[i]-patt_means[i])
+            _group_std = np.std(_by_alg[i]-patt_means[i], ddof=1)  # Use ddof=1 for sample standard deviation
+            cv_values[i] = (group_std / group_mean) * 100  # Multiply by 100 to express as percentage
+            print(f"{alg_names2[i]} - {_group_mean:.4f} ({_group_std:.4f})")
+
+        # 'cv_values' now contains the coefficient of variation for each group
+        print("Coefficient of Variation (CV) values:")
+        print(cv_values/cv_values[0])
