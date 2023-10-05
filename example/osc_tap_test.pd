@@ -1,4 +1,4 @@
-#N canvas 0 43 1710 1005 12;
+#N canvas 0 43 1710 1003 12;
 #N canvas 209 161 1138 662 tap_test 0;
 #X obj 200 64 tgl 19 0 test1onoff test1onoff-r TEST1-LOW 22 10 0 12 #fcfcfc #000000 #000000 0 1;
 #N canvas 0 22 450 278 (subpatch) 0;
@@ -581,17 +581,17 @@
 #X obj 214 431 bng 50 250 50 0 next_pattern empty NEXT 6 25 0 16 #dfdfdf #000000 #000000;
 #X obj 211 146 bng 51 250 50 0 start_test empty START 5 26 0 14 #c6ffc7 #000000 #000000;
 #N canvas 395 257 695 563 sound_options 0;
-#X floatatom 281 269 5 0 0 1 BPM bpm-s - 0;
+#X floatatom 520 266 5 0 0 1 BPM bpm-s - 0;
 #X obj 137 334 vsl 19 50 0 1 0 0 kickvol-s kickvol-r K 7 60 0 12 #e3c6ff #000000 #000000 0 1;
 #X obj 159 334 vsl 19 50 0 1 0 0 snarevol-s snarevol-r Sn 3 60 0 12 #c6ffc7 #000000 #000000 0 1;
 #X obj 125 165 tgl 30 0 \$0-polyonoff-s empty LISTEN\ TO\ INPUT\ PATTERN 40 15 0 14 #ffc7c6 #000000 #000000 0 1;
 #X obj 181 334 vsl 19 50 0 1 0 0 clapvol-s clapvol-r Cl 3 60 0 12 #ffe3c6 #000000 #000000 0 1;
 #X obj 225 334 vsl 19 50 0 1 0 0 tomsvol-s tomsvol-r Tm 3 60 0 12 #c6feff #000000 #000000 0 1;
 #X obj 203 334 vsl 19 50 0 1 0 0 chhvol-s chhvol-r HH 3 60 0 12 #feffc6 #000000 #000000 0 1;
-#X obj 155 269 hsl 120 19 180 280 0 0 bpm-r bpm-init empty -2 -10 0 12 #c7c6ff #000000 #000000 0 1;
+#X obj 394 266 hsl 120 19 180 280 0 0 bpm-r bpm-init empty -2 -10 0 12 #c7c6ff #000000 #000000 0 1;
 #X obj 125 203 tgl 30 0 play_tap load_play_tap LISTEN\ TO\ TAPPED\ PATTERN 40 15 0 14 #feffc6 #000000 #000000 0 1;
 #X text 137 314 INSTRUMENT VOLUMES;
-#X text 168 247 PLAYBACK SPEED (BPM);
+#X text 407 244 PLAYBACK SPEED (BPM);
 #X obj 101 101 tgl 8 0 empty empty SOUND\ OPTIONS 20 24 0 30 #fcfcfc #000000 #000000 0 1;
 #X obj 129 422 tgl 30 0 metronome empty METRONOME\ ON/OFF 40 16 0 14 #e3c6ff #2f004d #202020 0 1;
 #X obj 129 462 tgl 30 0 activerecord empty SOUND\ ON\ TAP 40 16 0 14 #feffc6 #000000 #000000 0 1;

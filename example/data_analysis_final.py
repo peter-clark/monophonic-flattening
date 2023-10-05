@@ -12,6 +12,8 @@ import test_functions as tf
 import sklearn.metrics as sk
 import warnings
 
+import neuralnetwork as NN
+
 with warnings.catch_warnings():
                 warnings.filterwarnings("ignore", category=UserWarning, module="matplotlib\..*")
 
@@ -19,13 +21,14 @@ with warnings.catch_warnings():
 # LOOK HERE BEFORE RUNNING
 # Select which graphs to show
 _coordinates = False
-_controlcomparison = False
+_controlcomparison = True
 _subjectaverageerror = False
-_patternaverageerror = True
+_patternaverageerror = False
 _tapcalibration = False
 
 ####
-n_subjects=25
+# Change here for number of tested subjects
+n_subjects=35
 test_patterns = [894, 423, 1367, 249, 939, 427, 590, 143, 912, 580, 1043, 673, 1359, 736, 678, 1355]
 
 
@@ -129,18 +132,23 @@ for y in range(2):
 # Control 1 = 678
 # Control 2 = 1355
 control_errors = np.array([[0.0,0.0] for x in range(n_subjects)], dtype=float)
+control_errors2 = np.array([[0.0,0.0] for x in range(n_subjects)], dtype=float)
+
 for person in range(len(by_person)):
     for test in range(len(by_person[person])):
         if by_person[person][test][0]==678:
             control_errors[person][0] += np.mean(np.abs(by_person[person][test][1:]-control_avgs[0]))
+            control_errors2[person][0] += np.mean(by_person[person][test][1:]-control_avgs[0])
             #print(f"{person} {int(by_person[person][test][0])}") 
         if by_person[person][test][0]==1355:
             control_errors[person][1] += np.mean(np.abs(by_person[person][test][1:]-control_avgs[1]))
+            control_errors2[person][1] += np.mean(by_person[person][test][1:]-control_avgs[1])
             #print(f"{person} {int(by_person[person][test][0])}") 
     #print(control_errors[person])
 outlier_thresholds = np.array([np.mean(control_errors[:,0])+(np.std(control_errors[:,0]*1.5)),np.mean(control_errors[:,1])+(np.std(control_errors[:,1])*1.5)], dtype=float)
 print(f"Outlier Cutoff Thresholds: (678):{outlier_thresholds[0]:.4f} (1355):{outlier_thresholds[1]:.4f}")
-
+print(f"678: [{np.min(control_errors2[:,0])},{np.max(control_errors2[:,0])}\n1355: [{np.min(control_errors2[:,1])},{np.max(control_errors2[:,1])}")
+#control_errors = control_errors2
 ### Plots for seeing outliers
 if _controlcomparison:
     fig, (ax, ax1) = plt.subplots(1,2,figsize=(12,6))
@@ -160,6 +168,8 @@ if _controlcomparison:
 
 
     ax1.scatter(control_errors[:,0], control_errors[:,1], marker='x', color='lightcoral')
+    outlier_thresholds = np.array([np.mean(control_errors[:,0])+(np.std(control_errors[:,0]*1.5)),np.mean(control_errors[:,1])+(np.std(control_errors[:,1])*1.5)], dtype=float)
+
     p1 = (outlier_thresholds[0],0.0)
     p2 = (0.0,outlier_thresholds[1])
     rect = mpl.patches.Rectangle((p2[0], p1[1]), p1[0] - p2[0], p2[1] - p1[1], linewidth=0.8, edgecolor='green', facecolor='none', linestyle='--')
@@ -170,8 +180,46 @@ if _controlcomparison:
     for n in range(n_subjects):
         ax1.text(control_errors[n,0], control_errors[n,1], str(n+1), size='x-small' )
     ax1.set_title("Subject Control Pattern Cross Errors", fontsize=14, fontfamily='serif',fontweight='book')
-    ax1.set_xlabel("Summed MAE for Pattern 678", fontfamily='serif')
-    ax1.set_ylabel("Summed MAE for Pattern 1355", fontfamily= 'serif')
+    ax1.set_xlabel("Summed AE for Pattern 678", fontfamily='serif')
+    ax1.set_ylabel("Summed AE for Pattern 1355", fontfamily= 'serif')
+    ax1.grid(color='lightgrey', linewidth=1, alpha=0.4)
+    plt.show()
+
+
+    ## Plot true mean error
+    fig, (ax, ax1) = plt.subplots(1,2,figsize=(12,6))
+
+    bp = ax.boxplot(control_errors2, patch_artist=True, boxprops=dict(facecolor='none'))
+    ax.scatter(np.full(len(control_errors2), 1), control_errors2[:,0],color='lightcoral', linewidth=0.75, marker='x', label="Sum Err. 678")
+    ax.scatter(np.full(len(control_errors2), 2), control_errors2[:,1],color='lightcoral', linewidth=0.75, marker='x', label="Sum Err. 1355")
+    #ax.scatter(np.full(len(control_errors2)-n_subjects, 1), control_errors2[n_subjects:,0],color='lightblue', linewidth=0.75, marker='x', label="Sum Err. 678")
+    #ax.scatter(np.full(len(control_errors2)-n_subjects, 2), control_errors2[n_subjects:,1],color='lightblue', linewidth=0.75, marker='x', label="Sum Err. 1355")
+
+    ax.set(xticks=[1,2], xticklabels=[str(x) for x in [678,1355]], ylim=[-1, 1], xlim=[0,3])
+    ax.set_title(f"Summed AE from Control Patterns", fontsize=14, fontfamily='serif')
+    ax.set_xlabel("Control Test Pattern", fontsize=12, fontfamily='serif')
+    ax.set_ylabel("Summed AE from Mean Tapped Pattern", fontsize=12, fontfamily='serif')
+    ax.axhline(y=0,color='black', alpha=0.6, linestyle='--')
+
+
+    outlier_thresholds2 = np.array([(np.mean(control_errors2[:,0])+(np.std(control_errors2[:,0]*1.5))), (np.mean(control_errors2[:,1])+(np.std(control_errors2[:,1]*1.5)))], dtype=float)
+
+    ax1.scatter(control_errors2[:,0], control_errors2[:,1], marker='x', color='lightcoral')
+    ax1.axhline(y=0.0, linewidth=0.8, linestyle="--", color='grey', alpha=0.8)
+    ax1.axvline(x=0.0, linewidth=0.8, linestyle="--", color='grey', alpha=0.8)
+    p1 = (outlier_thresholds2[0],-outlier_thresholds2[1])
+    p2 = (-outlier_thresholds2[0],outlier_thresholds2[1])
+    rect = mpl.patches.Rectangle((p2[0], p1[1]), p1[0] - p2[0], p2[1] - p1[1], linewidth=0.8, edgecolor='green', facecolor='none', linestyle='--')
+    ax1.add_patch(rect)
+    ax1.scatter(np.mean(control_errors2[:,0])+(np.std(control_errors2[:,0]*1.5)), np.mean(control_errors2[:,1])+(np.std(control_errors2[:,1]*1.5)), marker='o', color='green', linewidth=0.8)
+    ax1.scatter(-(np.mean(control_errors2[:,0])+(np.std(control_errors2[:,0]*1.5))), -(np.mean(control_errors2[:,1])+(np.std(control_errors2[:,1]*1.5))), marker='o', color='green', linewidth=0.8)
+    ax1.text(outlier_thresholds2[0],outlier_thresholds2[1], str())
+    ax1.set(xlim=[-1,1], ylim=[-1,1])
+    for n in range(n_subjects):
+        ax1.text(control_errors2[n,0], control_errors2[n,1], str(n+1), size='x-small' )
+    ax1.set_title("Subject Control Pattern Cross Errors", fontsize=14, fontfamily='serif',fontweight='book')
+    ax1.set_xlabel("Summed AE for Pattern 678", fontfamily='serif')
+    ax1.set_ylabel("Summed AE for Pattern 1355", fontfamily= 'serif')
     ax1.grid(color='lightgrey', linewidth=1, alpha=0.4)
     plt.show()
 
@@ -393,6 +441,8 @@ if _subjectaverageerror:
     idx = np.array(np.arange(n_subjects_clean))
     labels = idx+1
     custom_colors = mpl.cm.get_cmap('tab20b', n_subjects_clean)
+    color = 'lightgray'
+    dcolor='dimgray'
     meanline=0.0
     sd=0.0
     line0=ax.axhline(y=0,color='black', alpha=0.8, linewidth=1,label='Mean Tapped Velocity', linestyle='-')
@@ -400,11 +450,11 @@ if _subjectaverageerror:
         #print(f"{len(mean_diff_box[n])} {mean_diff_raw[n]} ")
         meanline+=np.mean(mean_diff_box[n])
         sd+=np.std(mean_diff_box[n])
-        ax.scatter(np.full(len(mean_diff_box[n]), n+1), mean_diff_box[n], color=custom_colors.colors[n], linestyle='-', marker='x', label="Subject Mean Abs. Err.", linewidth=0.8)
+        ax.scatter(np.full(len(mean_diff_box[n]), n+1), mean_diff_box[n], color=dcolor, linestyle='-', marker='x', label="Subject Mean Abs. Err.", linewidth=0.8)
     line1=ax.axhline(y=meanline/n_subjects_clean, color='lightgray', alpha=1, linewidth=1, label='Mean Abs Subject Error', linestyle='--')    
     print(f"Mean Subject Error: {meanline/n_subjects_clean} ({sd/n_subjects_clean})")
     bp=ax.boxplot(mean_diff_box.T, patch_artist=True, boxprops=dict(alpha=0.3, facecolor='lightcoral', edgecolor='black'))
-    for box, color in zip(bp['boxes'], custom_colors.colors):
+    for box, colorp in zip(bp['boxes'], custom_colors.colors):
         box.set_alpha=0.4
         box.set_facecolor(color)
     ax.set_title(f"Subject v. Subject Mean Abs. Difference (all patts)", fontsize=14, fontfamily='serif',fontweight='book')
@@ -424,9 +474,9 @@ if _subjectaverageerror:
     line0=ax1.axhline(y=0,color='black', alpha=0.7, linewidth=1,label='Mean Tapped Velocity', linestyle='--')
     for n in range(n_subjects_clean):
         #print(f"{len(mean_diff_raw[n])} {mean_diff_raw[n]} ")
-        ax1.scatter(np.full(len(mean_diff_raw_box[n]), n+1), mean_diff_raw_box[n], color=custom_colors.colors[n], linestyle='-', marker='x', label="Subject Avg. Err.", linewidth=0.8)
+        ax1.scatter(np.full(len(mean_diff_raw_box[n]), n+1), mean_diff_raw_box[n], color=dcolor, linestyle='-', marker='x', label="Subject Avg. Err.", linewidth=0.8)
     bp=ax1.boxplot(mean_diff_raw_box.T, patch_artist=True, boxprops=dict(alpha=0.3, facecolor='lightcoral', edgecolor='black'))
-    for box, color in zip(bp['boxes'], custom_colors.colors):
+    for box, colorsp in zip(bp['boxes'], custom_colors.colors):
         box.set_alpha=0.4
         box.set_facecolor(color)
     ax1.set_title(f"Subjects v. Subject Mean Difference (all patts)", fontsize=14, fontfamily='serif',fontweight='book')
@@ -452,7 +502,7 @@ if _patternaverageerror:
     #ax = fig.add_subplot()
     pidx=np.arange(16)+1
     custom_colors_patterns = mpl.cm.get_cmap('tab20b',16) # 24 to avoid yellows!
-    color='darkslategray' #custom_colors_patterns.colors[i]
+    color='dimgray' #custom_colors_patterns.colors[i]
 
     line=ax.axhline(y=0,color='black', alpha=0.6, linestyle='--', label='Mean Tapped Velocity')
     for i in range(len(test_patterns)):
@@ -462,7 +512,7 @@ if _patternaverageerror:
     bp= ax.boxplot(patt_mean_diff_box.T,widths=0.4, patch_artist=True, boxprops=dict(alpha=0.3, facecolor='lightcoral', edgecolor='black'))
     for box, color in zip(bp['boxes'], custom_colors_patterns.colors):
         box.set_alpha=0.5
-        box.set_facecolor(color)
+        box.set_facecolor('lightgray')
     
     ax.set(xticks=pidx, xticklabels=[str(x) for x in test_patterns], ylim=(-0.1,0.6))
     ax.set_title(f"Mean Absolute Difference from Subject Tapped Patterns", fontsize=14, fontfamily='serif',fontweight='book')
@@ -498,11 +548,11 @@ if _patternaverageerror:
     for i in range(len(test_patterns)):
         #a = np.min([(float(i/len(test_patterns))+0.2),1])
         a=0.7
-        ax1.scatter(np.full(len(patt_mean_diff_raw[i]),i+1),patt_mean_diff_raw[i], color=color, linewidth=0.5, marker='x', alpha=a)
-    bp= ax1.boxplot(patt_mean_diff_raw.T,widths=0.4, patch_artist=True, boxprops=dict(alpha=0.3, facecolor='lightcoral', edgecolor='black'))
+        ax1.scatter(np.full(len(patt_mean_diff_raw[i]),i+1),patt_mean_diff_raw[i], color="dimgray", linewidth=0.5, marker='x', alpha=a)
+    bp= ax1.boxplot(patt_mean_diff_raw.T,widths=0.4, patch_artist=True, boxprops=dict(alpha=0.3, facecolor='lightgray', edgecolor='black'))
     for box, color in zip(bp['boxes'], custom_colors_patterns.colors):
         box.set_alpha=0.5
-        box.set_facecolor(color)
+        box.set_facecolor("lightgray")
     
     ax1.set(xticks=pidx, xticklabels=[str(x) for x in test_patterns], ylim=(-0.4,0.5))
     ax1.set_title(f"Mean Difference from Subject Tapped Patterns", fontsize=14, fontfamily='serif',fontweight='book')
@@ -516,7 +566,7 @@ if _patternaverageerror:
 
     _firstplot=False
     _secondplot=False
-    _thirdplot=False # patterns 4x4
+    _thirdplot=True # patterns 4x4
     if _firstplot:
         idx=np.arange(16)
         for i in range(16):
@@ -592,6 +642,7 @@ if _patternaverageerror:
 
     if _thirdplot:                #  <---- pick flattening alg here
         idx=np.arange(16)
+        alg=2
         idx=idx+1
         for j in range(4):
             i=j*4
@@ -602,12 +653,12 @@ if _patternaverageerror:
             p4=axes[1,1]
             
             #topleft
-            p1.boxplot(by_pattern[i,:],widths=0.4, patch_artist=True, showfliers=False, boxprops=dict(alpha=0.2, facecolor='lightcoral'), capprops=dict(color='lightcoral'),whiskerprops=dict(color='lightcoral'))
+            p1.boxplot(by_pattern[i,:],widths=0.4, patch_artist=True, showfliers=False, boxprops=dict(alpha=0.5, facecolor='lightgray'), capprops=dict(color='lightgray'),whiskerprops=dict(color='lightgray'))
             #p1.errorbar(idx, patt_means[i],yerr=patt_stds[i], color='grey', linewidth=1,elinewidth=1,capsize=3)
-            p1.plot(idx,patt_means[i], marker="o", color='lightcoral', linestyle='-', label="Avg. Tap",linewidth=1)
-            line1,=p1.plot(idx,patt_means[i], color='lightcoral', linestyle='-', label="Avg. Tap")
-            #p1.plot(idx, by_alg[alg][i], marker='x', linestyle='--',color='deepskyblue', label='Cont.2 (DSM)')
-            #line2,=p1.plot(idx, by_alg[alg][i], marker='x', linestyle='--',color='deepskyblue', label='Cont.2 (DSM)')
+            p1.plot(idx,patt_means[i], marker="o", color='gray', linestyle='-', label="Avg. Tap",linewidth=1)
+            line1,=p1.plot(idx,patt_means[i], color='gray', linestyle='-', label="Avg. Tap")
+            #p1.plot(idx, by_alg[alg][i], marker='x', linestyle='--',color='black', label='Cont.2 (DSM)')
+            #line2,=p1.plot(idx, by_alg[alg][i], marker='x', linestyle='--',color='black', label='Cont.2 (DSM)')
             p1.set_title(f"#{test_patterns[i]} - {all_names[int(test_patterns[i])]}")
             p1.set_ylabel("Normalized Velocity")
             p1.set_xlabel("Step in Pattern")
@@ -616,10 +667,10 @@ if _patternaverageerror:
 
             
             #topright
-            p2.boxplot(by_pattern[i,:],widths=0.4, patch_artist=True, showfliers=False, boxprops=dict(alpha=0.2, facecolor='lightcoral'), capprops=dict(color='lightcoral'),whiskerprops=dict(color='lightcoral'))
+            p2.boxplot(by_pattern[i,:],widths=0.4, patch_artist=True, showfliers=False, boxprops=dict(alpha=0.5, facecolor='lightgray'), capprops=dict(color='lightgray'),whiskerprops=dict(color='lightgray'))
             #p2.errorbar(idx, patt_means[i+1],yerr=patt_stds[i+1], color='grey', linewidth=1)
-            p2.plot(idx,patt_means[i+1], marker="o", color='lightcoral', linestyle='-', label="Avg. Tap")
-            #p2.plot(idx, by_alg[alg][i+1], marker='x', linestyle='--',color='deepskyblue', label='Cont.2 (DSM)')
+            p2.plot(idx,patt_means[i+1], marker="o", color='gray', linestyle='-', label="Avg. Tap")
+            #p2.plot(idx, by_alg[alg][i+1], marker='x', linestyle='--',color='black', label='Cont.2 (DSM)')
             p2.set_title(f"#{test_patterns[i+1]} - {all_names[int(test_patterns[i+1])]}")
             p2.set_ylabel("Normalized Velocity")
             p2.set_xlabel("Step in Pattern")
@@ -627,10 +678,10 @@ if _patternaverageerror:
             p2.grid(color='lightgray', linestyle='-', linewidth=0.6, alpha=0.7, axis='y')
 
             #bottom left
-            p3.boxplot(by_pattern[i,:],widths=0.4, patch_artist=True, showfliers=False, boxprops=dict(alpha=0.2, facecolor='lightcoral', edgecolor='coral'), capprops=dict(color='lightcoral'),whiskerprops=dict(color='lightcoral'))
+            p3.boxplot(by_pattern[i,:],widths=0.4, patch_artist=True, showfliers=False, boxprops=dict(alpha=0.5, facecolor='lightgray', edgecolor='gray'), capprops=dict(color='lightgray'),whiskerprops=dict(color='lightgray'))
             #p3.errorbar(idx, patt_means[i+2],yerr=patt_stds[i+2], color='grey', linewidth=1)
-            p3.plot(idx,patt_means[i+2], marker="o", color='lightcoral', linestyle='-', label="Avg. Tap")
-            #p3.plot(idx, by_alg[alg][i+2], marker='x', linestyle='--',color='deepskyblue', label='Cont.2 (DSM)')
+            p3.plot(idx,patt_means[i+2], marker="o", color='gray', linestyle='-', label="Avg. Tap")
+            #p3.plot(idx, by_alg[alg][i+2], marker='x', linestyle='--',color='black', label='Cont.2 (DSM)')
             p3.set_title(f"#{test_patterns[i+2]} - {all_names[int(test_patterns[i+2])]}")
             p3.set_ylabel("Normalized Velocity")
             p3.set_xlabel("Step in Pattern")
@@ -638,17 +689,19 @@ if _patternaverageerror:
             p3.grid(color='lightgray', linestyle='-', linewidth=0.6, alpha=0.7, axis='y')
 
             #bottom right
-            p4.boxplot(by_pattern[i,:],widths=0.4, patch_artist=True, showfliers=False, boxprops=dict(alpha=0.2, facecolor='lightcoral', edgecolor='coral'), capprops=dict(color='lightcoral'),whiskerprops=dict(color='lightcoral'))
+            p4.boxplot(by_pattern[i,:],widths=0.4, patch_artist=True, showfliers=False, boxprops=dict(alpha=0.5, facecolor='lightgray', edgecolor='gray'), capprops=dict(color='lightgray'),whiskerprops=dict(color='lightgray'))
             #p4.errorbar(idx, patt_means[i+3],yerr=patt_stds[i+3], color='grey', linewidth=1)
-            p4.plot(idx,patt_means[i+3], marker="o", color='lightcoral', linestyle='-', label="Avg. Tap")
-            #p4.plot(idx, by_alg[alg][i+3], marker='x', linestyle='--',color='deepskyblue', label='Cont.2 (DSM)')
+            p4.plot(idx,patt_means[i+3], marker="o", color='gray', linestyle='-', label="Avg. Tap")
+            #p4.plot(idx, by_alg[alg][i+3], marker='x', linestyle='--',color='black', label='Cont.2 (DSM)')
             p4.set_title(f"#{test_patterns[i+3]} - {all_names[int(test_patterns[i+3])]}")
             p4.set_ylabel("Normalized Velocity")
             p4.set_xlabel("Step in Pattern")
             p4.set(ylim=[0.0,1.0])
             p4.grid(color='lightgray', linestyle='-', linewidth=0.6, alpha=0.7, axis='y')
 
+            #plt.suptitle("Subjects Mean Tapped Values vs \nContinuous Density, Synocpation and Meter Algorithm Predictions",fontsize=14, fontfamily='serif',fontweight='book')
             plt.suptitle("Subjects Mean Tapped Values by Pattern",fontsize=14, fontfamily='serif',fontweight='book')
+            #fig.legend(handles=[line1,line2], loc='upper left', labels=['Mean. Tap Value', 'Predicted Value (Alg.)'])
             fig.legend(handles=[line1], loc='upper left', labels=['Mean. Tap Value'])
             fig.tight_layout()
             plt.show()
@@ -919,3 +972,41 @@ if _tukeyalg:
         # 'cv_values' now contains the coefficient of variation for each group
         print("Coefficient of Variation (CV) values:")
         print(cv_values/cv_values[0])
+        print(alg_names2)
+        reshaped_data = _by_alg.reshape(-1, _by_alg.shape[-1])
+        levene_result = stats.levene(*reshaped_data)
+
+        # 'levene_result' contains the result of the Levene's test
+        print("Levene's Test Result:")
+        print("Statistic:", levene_result.statistic)
+        print("p-value:", levene_result.pvalue)
+
+
+
+    
+
+_nn = True
+if _nn:
+    ## INITIALIZE MODEL FOR PREDICTION
+    model_dir = os.getcwd()+"/models/continuous2.pt"
+    model = NN.build_model()
+    model.load_state_dict(NN.torch.load(model_dir))
+
+    ## LOAD EMBEDDING POSITIONS
+    coords_dir = os.getcwd()+"/embeddings/mds.csv"
+    c = pd.read_csv(coords_dir)
+    pos = [c.X, c.Y]
+    print(len(pos))
+    real_coords = [[0.0,0.0] for x in range (len(test_patterns))]
+    preds = np.array([[0.0 for y in range(n_subjects_clean)] for x in range(len(test_patterns))],dtype=float)
+    for person in range(len(by_person_final)):
+        for test in range(len(by_person_final[person])):
+            tapped_pattern = by_person_final[person][test][1:]
+            pred_coords = model(NN.torch.Tensor(tapped_pattern).float()).detach().numpy()
+            real_coords[0]=pos[0][int(by_person_final[person][test][0])]
+            real_coords[1]=pos[1][int(by_person_final[person][test][0])]
+            preds[test][person] = NN.EuclideanDistance(real_coords, pred_coords)
+print(np.mean(preds, axis=0)) #cols = people
+print(f'{np.mean(np.mean(preds, axis=0)):.4f} {-np.std(np.mean(preds, axis=0)):.4f}')
+print(np.mean(preds, axis=1)) # rows = tests
+print(f'{np.mean(np.mean(preds, axis=1)):.4f} {-np.std(np.mean(preds, axis=1)):.4f}')
