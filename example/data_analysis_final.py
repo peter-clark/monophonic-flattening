@@ -22,13 +22,13 @@ with warnings.catch_warnings():
 # Select which graphs to show
 _coordinates = False
 _controlcomparison = True
-_subjectaverageerror = False
+_subjectaverageerror = True
 _patternaverageerror = False
-_tapcalibration = False
+_tapcalibration = True
 
 ####
 # Change here for number of tested subjects
-n_subjects=35
+n_subjects=37
 test_patterns = [894, 423, 1367, 249, 939, 427, 590, 143, 912, 580, 1043, 673, 1359, 736, 678, 1355]
 
 
@@ -243,7 +243,7 @@ for person in range(len(by_person)):
 outliers = np.array(outliers, dtype=float)
 ## *** ## 
 ## Adds outliers back in to analysis
-_wholedataset = False
+_wholedataset = True
 if _wholedataset:
     clean_subjects = np.arange(n_subjects,dtype=int)
     n_subjects_clean = n_subjects
@@ -734,11 +734,25 @@ if _tapcalibration:
     ax.plot(tapidx+1, mean_low, color=colors_dark[2], label='Mean Tap Low')
     ax.plot(tapidx+1, mean_mid, color=colors_dark[1], label='Mean Tap Mid')
     ax.plot(tapidx+1, mean_high, color=colors_dark[0], label='Mean Tap High')
+    
+    ax.axhline(y=21, color=colors_dark[2], linestyle='--', label='Tap Low Center')
+    ax.axhline(y=63, color=colors_dark[1], linestyle='--',label='Tap Mid Center')
+    ax.axhline(y=105, color=colors_dark[0], linestyle='--', label='Tap High Center')
+
+    #v1
+    print(f"Tap high vs target middle: {np.mean(mean_high):.3f} [std={np.std(mean_high):.3f} var={np.var((mean_high)):.3f}] : ({(np.mean(mean_high)/105)*100:.3f}%)")
+    print(f"Tap mid vs target middle: {np.mean(mean_mid):.3f} [std={np.std(mean_mid):.3f} var={np.var((mean_mid)):.3f}] : ({(np.mean(mean_mid)/63)*100:.3f}%)")
+    print(f"Tap low vs target middle: {np.mean(mean_low):.3f} [std={np.std(mean_low):.3f} var={np.var((mean_low)):.3f}] : ({(np.mean(mean_low)/21)*100:.3f}%)\n")
+    #v2 8:32
+    cv_tap=[np.var(mean_high[8:])/np.mean(mean_high[8:]), np.var(mean_mid[8:])/np.mean(mean_mid[8:]), np.var(mean_low[8:])/np.mean(mean_low[8:])]
+    print(f"Tap high vs target middle: {np.mean(mean_high[8:]):.3f} [std={np.std(mean_high[8:]):.3f} var={np.var((mean_high[8:])):.3f}] : ({(np.mean(mean_high[8:])/105)*100:.3f}%) {cv_tap[0]*100:.2f}")
+    print(f"Tap mid vs target middle: {np.mean(mean_mid[8:]):.3f} [std={np.std(mean_mid[8:]):.3f} var={np.var((mean_mid[8:])):.3f}] : ({(np.mean(mean_mid[8:])/63)*100:.3f}%) {cv_tap[1]*100:.2f}")
+    print(f"Tap low vs target middle: {np.mean(mean_low[8:]):.3f} [std={np.std(mean_low[8:]):.3f} var={np.var((mean_low[8:])):.3f}] : ({(np.mean(mean_low[8:])/21)*100:.2f}%) {cv_tap[2]*100:.2f}\n")
 
     ax.axhline(y=42,color='seagreen', alpha=0.6, linestyle='--', label='Low / Mid Boundary')
     ax.axhline(y=84,color='slateblue', alpha=0.6, linestyle='--', label='Mid / High Boundary')
-
-    ax.set(ylim=[0,127], yticks=[0,42,84,127], xticks=tapidx+1)
+    tidx=tapidx+1
+    ax.set(ylim=[0,127], yticks=[0,42,84,127], xlim=[1,32],xticks=tidx)
     ax.set_title(f"Progressive Tapping Consistency over all Subjects", fontsize=14, fontfamily='serif',fontweight='book')
     ax.set_xlabel("Tap Order", fontsize=12, fontfamily='sans-serif')
     ax.set_ylabel("Tapped Velocity", fontsize=12, fontfamily='sans-serif')
@@ -812,7 +826,7 @@ if _tapcalibration:
 # By position: |0-50|51-100| , |0-33|34-66|67-100|, |0-25|26-50|51-75|76-100| (2/3/4)
 # By test: (mid test should have least error, but show it). This will tell us if participants improved over the trials.
 
-    _printANOVA = True
+    _printANOVA = False
     f_stat,p_val = stats.f_oneway(np.mean(_taps_high, axis=1),np.mean(_taps_mid, axis=1),np.mean(_taps_low, axis=1))
     if _printANOVA:
         print(f_stat)
@@ -821,7 +835,7 @@ if _tapcalibration:
         #print(f"F-Statistics: {f_stat:1.4f}")
         #print(f"P-Values: {p_val:1.6f}")
     # Tukey's HSD
-    _tukey = True
+    _tukey = False
     if _tukey:
         _all_taps = np.concatenate((np.mean(_taps_high, axis=1), np.mean(_taps_mid, axis=1), np.mean(_taps_low, axis=1)), axis=0)
         _all_taps_labels = ['high']*len(_taps_high) + ['mid']*len(_taps_mid) + ['low']*len(_taps_low)
@@ -902,7 +916,7 @@ if _printtest:
         for algtype in range(len(alg_names)): # iterate through 6 alg types
             print(f"{alg_scores[tn][algtype]:1.4f} <- {alg_names[algtype]}")
 
-_tukeyalg=True
+_tukeyalg=False
 if _tukeyalg:
         _by_alg = np.array([[[0.0 for x in range(16)] for y in range(16)] for z in range(7)], dtype=float) # algs
         _by_alg[0]=patt_means
@@ -985,7 +999,7 @@ if _tukeyalg:
 
     
 
-_nn = True
+_nn = False
 if _nn:
     ## INITIALIZE MODEL FOR PREDICTION
     model_dir = os.getcwd()+"/models/continuous2.pt"
@@ -1006,7 +1020,7 @@ if _nn:
             real_coords[0]=pos[0][int(by_person_final[person][test][0])]
             real_coords[1]=pos[1][int(by_person_final[person][test][0])]
             preds[test][person] = NN.EuclideanDistance(real_coords, pred_coords)
-print(np.mean(preds, axis=0)) #cols = people
-print(f'{np.mean(np.mean(preds, axis=0)):.4f} {-np.std(np.mean(preds, axis=0)):.4f}')
-print(np.mean(preds, axis=1)) # rows = tests
-print(f'{np.mean(np.mean(preds, axis=1)):.4f} {-np.std(np.mean(preds, axis=1)):.4f}')
+    print(np.mean(preds, axis=0)) #cols = people
+    print(f'{np.mean(np.mean(preds, axis=0)):.4f} {-np.std(np.mean(preds, axis=0)):.4f}')
+    print(np.mean(preds, axis=1)) # rows = tests
+    print(f'{np.mean(np.mean(preds, axis=1)):.4f} {-np.std(np.mean(preds, axis=1)):.4f}')

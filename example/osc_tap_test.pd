@@ -1,4 +1,4 @@
-#N canvas 0 43 1710 1003 12;
+#N canvas 0 37 1470 853 12;
 #N canvas 209 161 1138 662 tap_test 0;
 #X obj 200 64 tgl 19 0 test1onoff test1onoff-r TEST1-LOW 22 10 0 12 #fcfcfc #000000 #000000 0 1;
 #N canvas 0 22 450 278 (subpatch) 0;
@@ -746,7 +746,7 @@
 #X connect 57 0 17 0;
 #X connect 58 0 45 0;
 #X restore 255 49 pd send_to_py;
-#N canvas 795 354 667 439 from_py 1;
+#N canvas 795 354 667 439 from_py 0;
 #X obj 147 32 r OSC_from_py;
 #X obj 445 134 route var3sub1 var3 sub2;
 #X floatatom 9 143 5 0 0 0 - - - 0;
