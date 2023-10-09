@@ -22,13 +22,14 @@ with warnings.catch_warnings():
 # Select which graphs to show
 _coordinates = False
 _controlcomparison = True
-_subjectaverageerror = True
-_patternaverageerror = False
+_subjectaverageerror = False
+_patternaverageerror = True
 _tapcalibration = True
 
-####
+#### **************** #####
 # Change here for number of tested subjects
-n_subjects=37
+n_subjects=40
+_wholedataset = False
 test_patterns = [894, 423, 1367, 249, 939, 427, 590, 143, 912, 580, 1043, 673, 1359, 736, 678, 1355]
 
 
@@ -243,7 +244,6 @@ for person in range(len(by_person)):
 outliers = np.array(outliers, dtype=float)
 ## *** ## 
 ## Adds outliers back in to analysis
-_wholedataset = True
 if _wholedataset:
     clean_subjects = np.arange(n_subjects,dtype=int)
     n_subjects_clean = n_subjects
@@ -565,7 +565,7 @@ if _patternaverageerror:
 
 
     _firstplot=False
-    _secondplot=False
+    _secondplot=True
     _thirdplot=True # patterns 4x4
     if _firstplot:
         idx=np.arange(16)

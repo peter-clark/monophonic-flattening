@@ -1,4 +1,4 @@
-#N canvas 0 37 1470 853 12;
+#N canvas 0 43 1710 1003 12;
 #N canvas 209 161 1138 662 tap_test 0;
 #X obj 200 64 tgl 19 0 test1onoff test1onoff-r TEST1-LOW 22 10 0 12 #fcfcfc #000000 #000000 0 1;
 #N canvas 0 22 450 278 (subpatch) 0;
@@ -6,7 +6,7 @@
 #A 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0;
 #X coords 0 127 32 -1 200 140 1 0 0;
 #X restore 137 407 graph;
-#X obj 199 89 vsl 70 250 0 127 0 0 empty taptest1-color empty 0 -9 0 12 #2ad76b #000000 #fcfcfc 0 1;
+#X obj 199 89 vsl 70 250 0 127 0 0 empty taptest1-color empty 0 -9 0 12 #fcfcfc #000000 #fcfcfc 0 1;
 #X floatatom 213 342 3 0 0 0 - taptest1 - 16;
 #N canvas 0 22 450 278 (subpatch) 0;
 #X array taptest2-arr 32 float 3;
@@ -582,12 +582,12 @@
 #X obj 211 146 bng 51 250 50 0 start_test empty START 5 26 0 14 #c6ffc7 #000000 #000000;
 #N canvas 395 257 695 563 sound_options 0;
 #X floatatom 520 266 5 0 0 1 BPM bpm-s - 0;
-#X obj 137 334 vsl 19 50 0 1 0 0 kickvol-s kickvol-r K 7 60 0 12 #e3c6ff #000000 #000000 0 1;
-#X obj 159 334 vsl 19 50 0 1 0 0 snarevol-s snarevol-r Sn 3 60 0 12 #c6ffc7 #000000 #000000 0 1;
+#X obj 137 334 vsl 19 50 0 0.5 0 0 kickvol-s kickvol-r K 7 60 0 12 #e3c6ff #000000 #000000 0 1;
+#X obj 159 334 vsl 19 50 0 0.5 0 0 snarevol-s snarevol-r Sn 3 60 0 12 #c6ffc7 #000000 #000000 0 1;
 #X obj 125 165 tgl 30 0 \$0-polyonoff-s empty LISTEN\ TO\ INPUT\ PATTERN 40 15 0 14 #ffc7c6 #000000 #000000 0 1;
-#X obj 181 334 vsl 19 50 0 1 0 0 clapvol-s clapvol-r Cl 3 60 0 12 #ffe3c6 #000000 #000000 0 1;
-#X obj 225 334 vsl 19 50 0 1 0 0 tomsvol-s tomsvol-r Tm 3 60 0 12 #c6feff #000000 #000000 0 1;
-#X obj 203 334 vsl 19 50 0 1 0 0 chhvol-s chhvol-r HH 3 60 0 12 #feffc6 #000000 #000000 0 1;
+#X obj 181 334 vsl 19 50 0 0.5 0 0 clapvol-s clapvol-r Cl 3 60 0 12 #ffe3c6 #000000 #000000 0 1;
+#X obj 225 334 vsl 19 50 0 0.5 0 0 tomsvol-s tomsvol-r Tm 3 60 0 12 #c6feff #000000 #000000 0 1;
+#X obj 203 334 vsl 19 50 0 0.5 0 0 chhvol-s chhvol-r HH 3 60 0 12 #feffc6 #000000 #000000 0 1;
 #X obj 394 266 hsl 120 19 180 280 0 0 bpm-r bpm-init empty -2 -10 0 12 #c7c6ff #000000 #000000 0 1;
 #X obj 125 203 tgl 30 0 play_tap load_play_tap LISTEN\ TO\ TAPPED\ PATTERN 40 15 0 14 #feffc6 #000000 #000000 0 1;
 #X text 137 314 INSTRUMENT VOLUMES;
@@ -595,8 +595,8 @@
 #X obj 101 101 tgl 8 0 empty empty SOUND\ OPTIONS 20 24 0 30 #fcfcfc #000000 #000000 0 1;
 #X obj 129 422 tgl 30 0 metronome empty METRONOME\ ON/OFF 40 16 0 14 #e3c6ff #2f004d #202020 0 1;
 #X obj 129 462 tgl 30 0 activerecord empty SOUND\ ON\ TAP 40 16 0 14 #feffc6 #000000 #000000 0 1;
-#X obj 247 334 vsl 19 50 0 1 0 0 rimvol-s rimvol-r Rim 3 60 0 12 #c7c6ff #000000 #000000 0 1;
-#X obj 327 335 vsl 19 50 0 1 0 0 allvol-s allvol-r MSTR\ VOL -15 60 0 12 #bbbbbb #000000 #000000 0 1;
+#X obj 247 334 vsl 19 50 0 0.5 0 0 rimvol-s rimvol-r Rim 3 60 0 12 #c7c6ff #000000 #000000 0 1;
+#X obj 327 335 vsl 19 50 0 0.5 0 0 allvol-s allvol-r MSTR\ VOL -15 60 0 12 #bbbbbb #000000 #000000 0 1;
 #X text 267 350 ------->;
 #X coords 0 -1 1 1 280 400 2 100 100;
 #X restore 816 222 pd sound_options;
@@ -4664,7 +4664,7 @@
 #N canvas 797 166 450 446 load 0;
 #X obj 109 92 loadbang;
 #X obj 37 93 bng 19 250 50 0 empty load empty 0 -10 0 12 #fcfcfc #000000 #000000;
-#X msg 110 116 \; allvol-r 0.95 \; kickvol-r 0.95 \; snarevol-r 0.75 \; clapvol-r 0.75 \; chhvol-r 0.7 \; tomsvol-r 0.75 \; rimvol-r 0.65 \; init-instruments 1 \; bpm-r 220 \; pd dsp 1 \; load_all 1 \; bpm-init 240 \; kick normalize 1 \; snare normalize 1 \; rim normalize 1 \; chh normalize 1 \; ohh normalize 1 \; lt normalize 1 \; ht normalize 1 \; load_play_tap 1 \;;
+#X msg 110 116 \; allvol-r 0.15 \; kickvol-r 0.15 \; snarevol-r 0.15 \; clapvol-r 0.15 \; chhvol-r 0.15 \; tomsvol-r 0.15 \; rimvol-r 0.15 \; init-instruments 1 \; bpm-r 220 \; pd dsp 1 \; load_all 1 \; bpm-init 240 \; kick normalize 1 \; snare normalize 1 \; rim normalize 1 \; chh normalize 1 \; ohh normalize 1 \; lt normalize 1 \; ht normalize 1 \; load_play_tap 1 \;;
 #X connect 0 0 2 0;
 #X connect 1 0 2 0;
 #X restore 11 61 pd load;
