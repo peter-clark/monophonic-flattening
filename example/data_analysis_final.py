@@ -22,13 +22,13 @@ with warnings.catch_warnings():
 # Select which graphs to show
 _coordinates = False
 _controlcomparison = True
-_subjectaverageerror = False
-_patternaverageerror = True
+_subjectaverageerror = True
+_patternaverageerror = False
 _tapcalibration = True
 
 #### **************** #####
 # Change here for number of tested subjects
-n_subjects=40
+n_subjects=43
 _wholedataset = False
 test_patterns = [894, 423, 1367, 249, 939, 427, 590, 143, 912, 580, 1043, 673, 1359, 736, 678, 1355]
 

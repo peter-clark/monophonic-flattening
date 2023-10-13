@@ -17,7 +17,7 @@ with warnings.catch_warnings():
 
 ################################## Data Analysis for Tap to Drums ###################################
 # Before running analysis, give number of participants and which graphs/analyses to do:
-n_subjects=40
+n_subjects=43
 _wholedataset = False
 
 # Which analysis
@@ -105,7 +105,7 @@ for test in range(len(data)):
         for i in range(len(test_patterns)):
             if test_patterns[i] == patt_number:
                 for j in range(len(alg_hold)):
-                     algorithms[j][i] = alg_hold[j]
+                    algorithms[j][i] = alg_hold[j]
 
         # Sort into by subject struct (to be later cleaned)
         tap_data = np.array([0.0 for x in range(17)]) # name + tap
@@ -131,6 +131,39 @@ for test in range(len(data)):
             subjects[subject_count][test_count] = tap_data
             test_count += 1
 
+## More variables
+taptaps = np.array([[[0.0 for x in range(32)] for y in range(3)] for z in range(n_subjects)], dtype=float)
+taptaps_mid = np.array([[0.0 for x in range(32)] for x in range(n_subjects)], dtype=float)
+taptaps_high = np.array([[0.0 for x in range(32)] for x in range(n_subjects)], dtype=float)
+taptaps_low = np.array([[0.0 for x in range(32)] for x in range(n_subjects)], dtype=float)
+mean_taptaps = np.array([[0.0 for x in range(32)] for x in range(3)], dtype=float)
+
+## Sort tap consistency into by subject ##
+for line in range(len(taptap)):
+    for tap in range(32):
+        taptap[line][tap+3]==float(taptap[line][tap+3])
+print(mean_taptaps.shape)
+for n in range(n_subjects):
+    for t in range(3):
+        index = n*3 + t
+        test = int(taptap[line][2])
+        if test==1:
+            taptaps_low[n]=taptap[index][3:]
+            taptaps[n][test-1]=taptap[index][3:]
+            mean_taptaps[0] += np.array(taptap[index][3:], dtype=float)
+        if test==3:
+            taptaps_mid[n]=taptap[index][3:]
+            taptaps[n][test-1]=taptap[index][3:]
+            mean_taptaps[1] += np.array(taptap[index][3:], dtype=float)
+        if test==2:
+            taptaps_high[n]=taptap[index][3:]
+            taptaps[n][test-1]=taptap[index][3:]
+            mean_taptaps[2] += np.array(taptap[index][3:], dtype=float)
+
+mean_taptaps /= n_subjects           
+for i in range(len(taptaps)):
+    print(f"Tap Consistency Means: {mean_taptaps[i]}")
+
 ######################################################################################################
 ################################## Outlier Selection #################################################
 ## Variable Declaration ##
@@ -138,6 +171,7 @@ control_precision = np.asarray([[[0.0 for x in range(16)] for y in range(2)] for
 control_accuracy = np.asarray([[[0.0 for x in range(16)] for y in range(2)] for z in range(n_subjects)], dtype=float)
 control_accuracy_abs = np.asarray([[[0.0 for x in range(16)] for y in range(2)] for z in range(n_subjects)], dtype=float)
 control_means = np.asarray([[0.0 for x in range(16)] for y in range(2)], dtype=float)
+outlier_thresholds = np.asarray([[0.0 for x in range(4)] for y in range(3)], dtype=float) # [678+, 678-, 1355+, 1355-] x 3 outlier tests
 
 ## Means for Accuracy Comparison ##
 for n in range(n_subjects):
@@ -155,6 +189,7 @@ for n in range(n_subjects):
     control_accuracy[n][1] = (controls[n][2]-control_means[1])+(controls[n][3]-control_means[1])
     control_accuracy_abs[n][0] = np.abs(controls[n][0]-control_means[0])+np.abs(controls[n][1]-control_means[0])
     control_accuracy_abs[n][1] = np.abs(controls[n][2]-control_means[1])+np.abs(controls[n][3]-control_means[1])
+
 
 ## Precision Stats ##
 precision_means = np.mean(control_precision, axis=2)
@@ -185,31 +220,41 @@ print("1355:")
 print(f"[M={np.mean(np.abs(ctrl_means_abs[:,1]))}, SD={np.std(ctrl_means_abs[:,1]):.3f}]")
 print(f"[V={np.var(ctrl_means_abs[:,1]):.3f}, CV={(np.std(ctrl_means_abs[:,1])/np.mean(np.abs(ctrl_means_abs[:,1]))):.3f}]")
 
+out = ctrl_means+precision_means #ctrl_means_abs
+
+
 ## Plot Precision and Accuracy ## ------------------------------------------------------------------------------
 if _control:
-    fig, (ax1, ax2, ax3) = plt.subplots(1,3, figsize=(18,7), gridspec_kw={'width_ratios': [3,3,3]}) 
+    fig, (ax1, ax2) = plt.subplots(1,2, figsize=(16,8), gridspec_kw={'width_ratios': [2,2]}) 
 
     ax1.set_aspect('equal')
     ax2.set_aspect('equal')
-    ax3.set_aspect('equal')
 
     ## Precision by Control Pattern ##
     p1=(np.std(precision_means[:,0])*2,-np.std(precision_means[:,1])*2)
     p2=(-np.std(precision_means[:,0])*2,np.std(precision_means[:,1])*2)
 
+    outlier_thresholds[0] = [np.std(precision_means[:,0])*2, -np.std(precision_means[:,0])*2, np.std(precision_means[:,1])*2, -np.std(precision_means[:,1])*2]
+
     ax1.axhline(y=0.0, linewidth=0.8, linestyle="--", color='grey', alpha=0.8)
     ax1.axvline(x=0.0, linewidth=0.8, linestyle="--", color='grey', alpha=0.8)
     rect = mpl.patches.Rectangle((p2[0], p1[1]), p1[0] - p2[0], p2[1] - p1[1], linewidth=0.8, edgecolor='green', facecolor='none', linestyle='--')
     ax1.add_patch(rect)
-    ax1.scatter(precision_means[:,0], precision_means[:,1], marker='x', color='lightgreen', label="Intra-Pattern Precision")
+    ax1.scatter(precision_means[:,0], precision_means[:,1], marker='.', color='darkgreen', label="Intra-Pattern Precision")
     for n in range(n_subjects): # Subject # Labels
         ax1.text(precision_means[n,0], precision_means[n,1], str(n+1), size='x-small')
     ax1.set(xlim=[-0.5,0.5], ylim=[-0.5,0.5], xticks=np.arange(-0.5,0.5,0.1), yticks=np.arange(-0.5,0.5,0.1))
     ax1.grid(color='lightgrey', linewidth=0.3, alpha=0.4)
+    ax1.set_title("Precision (Attempt 1 v 2)", fontsize=14, fontfamily='serif',fontweight='book')
+    ax1.set_ylabel("Pattern 678", fontsize=12, fontfamily='sans-serif')
+    ax1.set_ylabel("Pattern 1355", fontsize=12, fontfamily='sans-serif')
 
     ## Accuracy by Control Pattern ##
     p1=(np.std(ctrl_means[:,0])*2,-np.std(ctrl_means[:,1])*2)
     p2=(-np.std(ctrl_means[:,0])*2,np.std(ctrl_means[:,1])*2)
+
+    outlier_thresholds[1] = [np.std(ctrl_means[:,0])*2, -np.std(ctrl_means[:,0])*2, np.std(ctrl_means[:,1])*2, -np.std(ctrl_means[:,1])*2]
+
     rect = mpl.patches.Rectangle((p2[0], p1[1]), p1[0] - p2[0], p2[1] - p1[1], linewidth=0.8, edgecolor='green', facecolor='none', linestyle='--')
     ax2.add_patch(rect)
     ax2.axhline(y=0.0, linewidth=0.8, linestyle="--", color='grey', alpha=0.8)
@@ -219,10 +264,24 @@ if _control:
         ax2.text(ctrl_means[n,0], ctrl_means[n,1], str(n+1), size='x-small')
     ax2.set(xlim=[-1,1], ylim=[-1,1], xticks=np.arange(-1,1,0.25), yticks=np.arange(-1,1,0.25))
     ax2.grid(color='lightgrey', linewidth=0.3, alpha=0.4)
+    ax2.set_title("True Accuracy (vs. Mean Tapped Pattern)", fontsize=14, fontfamily='serif',fontweight='book')
+    ax2.set_ylabel("Pattern 678", fontsize=12, fontfamily='sans-serif')
+    ax2.set_ylabel("Pattern 1355", fontsize=12, fontfamily='sans-serif')
 
+    fig.legend()
+    plt.show()
+
+    ## Second Plot ##
+
+    fig, (ax3, ax4) = plt.subplots(1,2, figsize=(16,8), gridspec_kw={'width_ratios': [2,2]}) 
+
+    ax3.set_aspect('equal')
     ## Absolute Accuracy by Control Pattern ##
     p3=(np.mean(ctrl_means_abs[:,0])+(np.std(ctrl_means_abs[:,0])*2), np.mean(ctrl_means_abs[:,1])-(np.std(ctrl_means_abs[:,1])*2))
     p4=((np.mean(ctrl_means_abs[:,0])-(np.std(ctrl_means_abs[:,0]))*2), np.mean(ctrl_means_abs[:,1])+(np.std(ctrl_means_abs[:,1])*2))
+
+    outlier_thresholds[2] = [np.std(ctrl_means_abs[:,0])*2, -np.std(ctrl_means_abs[:,0])*2, np.std(ctrl_means_abs[:,1])*2, -np.std(ctrl_means_abs[:,1])*2]
+
     rect = mpl.patches.Rectangle((p4[0], p3[1]), p3[0] - p4[0], p4[1] - p3[1], linewidth=0.8, edgecolor='blue', facecolor='none', linestyle='--')
     ax3.add_patch(rect)
     ax3.axhline(y=0.0, linewidth=0.8, linestyle="--", color='grey', alpha=0.8)
@@ -232,13 +291,194 @@ if _control:
         ax3.text(ctrl_means_abs[n,0], ctrl_means_abs[n,1], str(n+1), size='x-small')
     ax3.set(xlim=[0,1], ylim=[0,1], xticks=np.arange(0,1,0.25), yticks=np.arange(0,1,0.25))
     ax3.grid(color='lightgrey', linewidth=0.3, alpha=0.4)
+    ax3.set_title("Summed ABS Accuracy \n(vs. Mean Tapped Pattern)", fontsize=14, fontfamily='serif',fontweight='book')
+    ax3.set_ylabel("Pattern 678", fontsize=12, fontfamily='sans-serif')
+    ax3.set_ylabel("Pattern 1355", fontsize=12, fontfamily='sans-serif')
 
-    
+   
+    ax4.axhline(y=0.0, linewidth=0.8, linestyle="--", color='grey', alpha=0.8)
+    ax4.axvline(x=0.0, linewidth=0.8, linestyle="--", color='grey', alpha=0.8)
+    ax4.scatter(out[:,0], out[:,1], marker='.', color='lightblue', label="Sum Abs. Mean Accuracy")
+    for n in range(n_subjects):
+        ax4.text(out[n,0], out[n,1], str(n+1), size='x-small')
+    #ax4.set(xlim=[0,1], ylim=[0,1], xticks=np.arange(0,1,0.25), yticks=np.arange(0,1,0.25))
+    ax4.grid(color='lightgrey', linewidth=0.3, alpha=0.4)
+    ax4.set_title("Sum Outlier Metric", fontsize=14, fontfamily='serif',fontweight='book')
+    ax4.set_ylabel("Pattern 678", fontsize=12, fontfamily='sans-serif')
+    ax4.set_ylabel("Pattern 1355", fontsize=12, fontfamily='sans-serif')
+
     fig.legend()
     plt.show()
-
+    
+    
 ######################################################################################################
 ########################## Sort cleaned subjects, patterns and steps #################################
 ## Variable Declaration ##
-patterns = np.array([], dtype=float)
-steps = np.array([], dtype=float) # step in pattern
+n_subjects_clean=0
+subjects_clean_idx = []
+outliers = []
+
+## Identify outliers and clean subjects ##
+for n in range(n_subjects):
+    c = [np.mean(control_precision[n][0]), np.mean(control_precision[n][1])]
+    if c[0]>=outlier_thresholds[0][0] or c[0]<=outlier_thresholds[0][1] or c[1]>=outlier_thresholds[0][2] or c[1]<=outlier_thresholds[0][3]: # 1355 check
+            print(f"[x] {n+1} <--")
+            outliers.append([n, c[0], c[1]])
+    else:
+        n_subjects_clean += 1
+        print(f"[ ] {n+1}")
+        subjects_clean_idx.append(n)
+outliers=np.array(outliers, dtype=float)
+
+## Analyze whole dataset if asked ##
+if _wholedataset:
+    subjects_clean_idx = np.arange(n_subjects, dtype=int)
+    n_subjects_clean=n_subjects
+
+print(f"Subjects: {n_subjects_clean} \nOutliers: {len(outliers[:,:1])} \n{outliers[:,:1]}")
+
+## Declare new variable structs ##
+subjects_full = np.array([[[0.0 for x in range(17)] for y in range(len(test_patterns))] for z in range(n_subjects)], dtype=float) #needed for 2nd ctrl removal
+
+patterns = np.array([[[0.0 for x in range(17)] for y in range(n_subjects_clean)] for z in range(16)], dtype=float) # steps subjects patterns
+patterns_sorted = np.array([[[0.0 for x in range(16)] for y in range(n_subjects_clean)] for z in range(16)], dtype=float) # steps subjects patterns
+
+subjects_clean = np.array([[[0.0 for x in range(17)] for y in range(16)] for z in range(n_subjects_clean)]) # steps patterns subjects
+subjects_sorted = np.array([[[0.0 for x in range(16)] for y in range(16)] for z in range(n_subjects_clean)]) # steps patterns subjects in order of test_patterns
+
+steps_by_patt = np.array([[[0.0 for x in range(n_subjects_clean)] for y in range(16)] for z in range(16)], dtype=float) # subjects patterns steps
+steps_by_subj = np.array([[[0.0 for x in range(16)] for y in range(n_subjects_clean)] for z in range(16)], dtype=float) # patternvalue at idx z, subjects steps
+
+## Remove second attempt at control patterns ##
+for n in range(n_subjects):
+    cnt=[0,0,0] #ctrl1, ctrl2, pattcount
+    for patt in range(18):
+        test_number = int(subjects[n][patt][0])
+        if test_number==678:
+            if cnt[0]<1:
+                subjects_full[n][cnt[2]] = subjects[n][patt]
+                cnt[2]+=1
+            cnt[0]+=1
+        elif test_number==1355:
+            if cnt[1]<1:
+                subjects_full[n][cnt[2]] = subjects[n][patt]
+                cnt[2]+=1
+            cnt[1]+=1
+        else:
+            subjects_full[n][cnt[2]] = subjects[n][patt]
+            cnt[2]+=1
+
+## Extract only results from non-outlier subjects ##
+idx=0
+for n in range(n_subjects):
+    if n in subjects_clean_idx:
+        subjects_clean[idx] = subjects_full[n]
+
+        # TODO Tap Consistency as well! One function to get clean subjects
+
+        idx += 1
+
+## Sort into ordered by test num and position in the pattern ##
+for n in range(n_subjects_clean):
+    for i in range(len(subjects_clean[n])):
+        test_num = int(subjects_clean[n][i][0])
+        for j in range(len(test_patterns)):
+            if j==test_num:
+                subjects_sorted[n][j] = subjects_clean[n][i][1:]
+
+                patterns[i][n] = subjects_clean[n][i]
+                patterns_sorted[j][n] = subjects_clean[n][i][1:] # patterns sorted into test_patterns order
+
+                for k in range(16): # steps
+                    steps_by_patt[k][j][n] = subjects_clean[n][i][k+1] # k+1 for the patt num
+                    steps_by_subj[k][n][j] = subjects_clean[n][i][k+1]
+                    
+print(subjects_clean.shape)
+print(steps_by_patt.shape)
+
+## Sort into struct for boxplot plotting ## 
+
+
+
+######################################################################################################
+############################### Plot data from test experiments. #####################################
+
+## Plotstyles for Consistency ##
+## Labels and Titles ##
+title_style={
+    'fontsize':14,
+    'fontfamily':'serif',
+    'fontweight':'book'
+}
+label_style={
+    'fontsize':12,
+    'fontfamily':'sans-serif',
+    'fontweight':'book'
+}
+## Scatters -----------
+scatter_style={
+    'color':'dimgrey',
+    'marker':'.',
+    'linewidth':0.5,
+    'alpha':0.6
+}
+## Lines -----------
+dashed_line_style={
+    'color':'dimgrey',
+    'marker':'--',
+    'alpha':0.6,
+    'linewidth':0.8
+}
+solid_line_style={
+    'color':'dimgrey',
+    'marker':'-',
+    'alpha':0.9,
+    'linewidth':0.8
+}
+## Boxplots -----------
+box_style={
+    'boxprops':{}
+}
+# - Tap consistency style (Pur-Blu-Gre)
+
+## Plot Subjects ##
+if _subject:
+    print()
+
+## Plot Patterns ##
+if _pattern:
+    fig, (ax, ax1) = plt.subplots(2,1,figsize=(12,8))
+    idx=np.arange(16)+1
+    line = ax.axhline(y=0, **solid_line_style)
+
+    ax.set(xticks=idx, xlabels=[str(x) for x in test_patterns], ylim=(-0.2, 0.8))
+    ax.set_title(f"Mean Absolute Difference from Subject Tapped Patterns", **title_style)
+    ax.set_xlabel(f"Test Pattern", **label_style)
+    ax.set_ylabel(f"Mean Absolute Difference from Avg. Tap (Velocity)", **label_style)
+
+    #plot 1
+    # boxplot
+    # scatter
+
+
+
+    print()
+
+## Plot Steps ##
+if _position:
+    print()
+
+## Plot Tap Consistency ##
+if _tapcalibration:
+    print()
+
+
+# TODO: (true and abs errors necessary to highlight different aspects of behavior)
+# - Error by subject over all patterns (non-outlier subject trend of behavior)
+# - Error by pattern over all subjects (were any patterns problematic)
+# - Error by step in pattern (did people exhibit behavior related to metrical position)
+# - Error by order of pattern presentation (total pattern error v pattern position in test order)
+
+
+# - Check distribution of mean errors for subjects and alg predictions (one large error can skew mean)
+# - Attempt scaling subjects a. overall and b. by pattern inidividually (normalize by individual or by tap tap results)
