@@ -22,10 +22,10 @@ _wholedataset = False
 
 # Which analysis
 _coordinates = False
-_control = True
+_control = True # must be true for some reason not yet found in the plot block
 _subject = False
-_pattern = True
-_position = False
+_pattern = False
+_position = True
 _tapcalibration = True
 
 ######################################################################################################
@@ -146,7 +146,7 @@ print(mean_taptaps.shape)
 for n in range(n_subjects):
     for t in range(3):
         index = n*3 + t
-        test = int(taptap[line][2])
+        test = int(taptap[index][2])
         if test==1:
             taptaps_low[n]=taptap[index][3:]
             taptaps[n][test-1]=taptap[index][3:]
@@ -159,10 +159,9 @@ for n in range(n_subjects):
             taptaps_high[n]=taptap[index][3:]
             taptaps[n][test-1]=taptap[index][3:]
             mean_taptaps[2] += np.array(taptap[index][3:], dtype=float)
-
 mean_taptaps /= n_subjects           
-for i in range(len(taptaps)):
-    print(f"Tap Consistency Means: {mean_taptaps[i]}")
+for i in range(len(mean_taptaps)):
+    print(f"Tap Consistency Means: {np.mean(mean_taptaps[i])}")
 
 ######################################################################################################
 ################################## Outlier Selection #################################################
@@ -178,7 +177,7 @@ for n in range(n_subjects):
     control_means[0] += (controls[n][0] + controls[n][1])/2
     control_means[1] += (controls[n][2] + controls[n][3])/2
 control_means[:] /= n_subjects
-print(control_means)
+#print(control_means)
 ## Calculate Precision and Accuracy ##
 for n in range(n_subjects):
     control_precision[n][0] = controls[n][0]-controls[n][1]
@@ -195,7 +194,7 @@ for n in range(n_subjects):
 precision_means = np.mean(control_precision, axis=2)
 precision_means = np.asarray(precision_means, dtype=float)
 print("PRECISION:\n678:")
-print(f"[M={np.mean(np.abs(precision_means[:,0]))}, SD={np.std(precision_means[:,0]):.3f}]")
+print(f"[M={np.mean(np.abs(precision_means[:,0])):.3f}, SD={np.std(precision_means[:,0]):.3f}]")
 print(f"[V={np.var(precision_means[:,0]):.3f}, CV={(np.std(precision_means[:,0])/np.mean(np.abs(precision_means[:,0]))):.3f}]")
 print("1355:")
 print(f"[M={np.mean(np.abs(precision_means[:,1]))}, SD={np.std(precision_means[:,1]):.3f}]")
@@ -205,7 +204,7 @@ print(f"[V={np.var(precision_means[:,1]):.3f}, CV={(np.std(precision_means[:,1])
 ctrl_means = np.mean(control_accuracy, axis=2)
 ctrl_means = np.asarray(ctrl_means, dtype=float)
 print("\nACCURACY:\n678:")
-print(f"[M={np.mean(np.abs(ctrl_means[:,0]))}, SD={np.std(ctrl_means[:,0]):.3f}]")
+print(f"[M={np.mean(np.abs(ctrl_means[:,0])):.3f}, SD={np.std(ctrl_means[:,0]):.3f}]")
 print(f"[V={np.var(ctrl_means[:,0]):.3f}, CV={(np.std(ctrl_means[:,0])/np.mean(np.abs(ctrl_means[:,0]))):.3f}]")
 print("1355:")
 print(f"[M={np.mean(np.abs(ctrl_means[:,1]))}, SD={np.std(ctrl_means[:,1]):.3f}]")
@@ -214,18 +213,19 @@ print(f"[V={np.var(ctrl_means[:,1]):.3f}, CV={(np.std(ctrl_means[:,1])/np.mean(n
 ctrl_means_abs = np.mean(control_accuracy_abs, axis=2)
 ctrl_means_abs = np.asarray(ctrl_means_abs, dtype=float)
 print("\nABS ACCURACY:\n678:")
-print(f"[M={np.mean(np.abs(ctrl_means_abs[:,0]))}, SD={np.std(ctrl_means_abs[:,0]):.3f}]")
+print(f"[M={np.mean(np.abs(ctrl_means_abs[:,0])):.3f}, SD={np.std(ctrl_means_abs[:,0]):.3f}]")
 print(f"[V={np.var(ctrl_means_abs[:,0]):.3f}, CV={(np.std(ctrl_means_abs[:,0])/np.mean(np.abs(ctrl_means_abs[:,0]))):.3f}]")
 print("1355:")
 print(f"[M={np.mean(np.abs(ctrl_means_abs[:,1]))}, SD={np.std(ctrl_means_abs[:,1]):.3f}]")
 print(f"[V={np.var(ctrl_means_abs[:,1]):.3f}, CV={(np.std(ctrl_means_abs[:,1])/np.mean(np.abs(ctrl_means_abs[:,1]))):.3f}]")
 
 out = ctrl_means+precision_means #ctrl_means_abs
+outlier_thresholds[1] = [np.std(ctrl_means[:,0])*2, -np.std(ctrl_means[:,0])*2, np.std(ctrl_means[:,1])*2, -np.std(ctrl_means[:,1])*2]
+outlier_thresholds[2] = [np.std(ctrl_means_abs[:,0])*2, -np.std(ctrl_means_abs[:,0])*2, np.std(ctrl_means_abs[:,1])*2, -np.std(ctrl_means_abs[:,1])*2]
 
-
-## Plot Precision and Accuracy ## ------------------------------------------------------------------------------
+##---------------------Plot outliers----------------------##
 if _control:
-    fig, (ax1, ax2) = plt.subplots(1,2, figsize=(16,8), gridspec_kw={'width_ratios': [2,2]}) 
+    fig, (ax1, ax2) = plt.subplots(1,2, figsize=(12,8), gridspec_kw={'width_ratios': [2,2]}) 
 
     ax1.set_aspect('equal')
     ax2.set_aspect('equal')
@@ -273,7 +273,7 @@ if _control:
 
     ## Second Plot ##
 
-    fig, (ax3, ax4) = plt.subplots(1,2, figsize=(16,8), gridspec_kw={'width_ratios': [2,2]}) 
+    fig, (ax3, ax4) = plt.subplots(1,2, figsize=(12,8), gridspec_kw={'width_ratios': [2,2]}) 
 
     ax3.set_aspect('equal')
     ## Absolute Accuracy by Control Pattern ##
@@ -308,8 +308,7 @@ if _control:
     ax4.set_ylabel("Pattern 1355", fontsize=12, fontfamily='sans-serif')
 
     fig.legend()
-    plt.show()
-    
+    plt.show()    
     
 ######################################################################################################
 ########################## Sort cleaned subjects, patterns and steps #################################
@@ -373,7 +372,6 @@ idx=0
 for n in range(n_subjects):
     if n in subjects_clean_idx:
         subjects_clean[idx] = subjects_full[n]
-
         # TODO Tap Consistency as well! One function to get clean subjects
 
         idx += 1
@@ -383,21 +381,62 @@ for n in range(n_subjects_clean):
     for i in range(len(subjects_clean[n])):
         test_num = int(subjects_clean[n][i][0])
         for j in range(len(test_patterns)):
-            if j==test_num:
+            if test_patterns[j]==test_num:
+                #print(f"subj {i} patt {j}")
                 subjects_sorted[n][j] = subjects_clean[n][i][1:]
 
                 patterns[i][n] = subjects_clean[n][i]
                 patterns_sorted[j][n] = subjects_clean[n][i][1:] # patterns sorted into test_patterns order
 
                 for k in range(16): # steps
-                    steps_by_patt[k][j][n] = subjects_clean[n][i][k+1] # k+1 for the patt num
+                    steps_by_patt[k][j][n] = subjects_clean[n][i][k+1] # k+1 to skip the patt num
                     steps_by_subj[k][n][j] = subjects_clean[n][i][k+1]
                     
 print(subjects_clean.shape)
 print(steps_by_patt.shape)
+## Get means and other stats for by pattern ##
+pattern_mean = np.array([[0.0 for x in range(16)] for y in range(16)], dtype=float)
+pattern_std = np.array([[0.0 for x in range(16)] for y in range(16)], dtype=float)
+pattern_var = np.array([[0.0 for x in range(16)] for y in range(16)], dtype=float)
+pattern_mean = np.mean(patterns_sorted[:,:,:], axis=1)
+pattern_std = np.std(patterns_sorted[:,:,:], axis=1)
+pattern_var = np.var(patterns_sorted[:,:,:], axis=1)
 
 ## Sort into struct for boxplot plotting ## 
+# absolute and true for each
+patt_abs = np.array([[0.0 for x in range(n_subjects_clean)] for y in range(16)], dtype=float)
+patt_true = np.array([[0.0 for x in range(n_subjects_clean)] for y in range(16)], dtype=float)
 
+subj_true = np.array([[0.0 for x in range(16)] for y in range(n_subjects_clean)], dtype=float)
+subj_abs = np.array([[0.0 for x in range(16)] for y in range(n_subjects_clean)], dtype=float)
+
+step_patt_abs = np.array([[0.0 for x in range(16)] for y in range(16)], dtype=float)
+step_patt_true = np.array([[0.0 for x in range(16)] for y in range(16)], dtype=float)
+
+step_subj_abs = np.array([[0.0 for x in range(n_subjects_clean)] for y in range(16)], dtype=float)
+step_subj_true = np.array([[0.0 for x in range(n_subjects_clean)] for y in range(16)], dtype=float)
+
+for p in range(len(test_patterns)):
+    for per in range(n_subjects_clean):
+        patt_true[p][per] = np.mean(patterns_sorted[p][per]-pattern_mean[p])
+        patt_abs[p][per] = np.mean(np.abs(patterns_sorted[p][per]-pattern_mean[p]))
+
+        subj_true[per][p] = np.mean(subjects_sorted[per][p] - pattern_mean[p])
+        subj_abs[per][p] = np.mean(np.abs(subjects_sorted[per][p] - pattern_mean[p]))
+
+        for st in range(16):
+        ## !! It might be axis=0, not 100% sure
+            step_patt_true[st][p] = np.mean(steps_by_patt[st][p]-np.mean(steps_by_patt[:,:,:], axis=0))
+            step_patt_abs[st][p] = np.mean(np.abs(steps_by_patt[st][p]-np.mean(steps_by_patt[:,:,:], axis=0)))
+            step_subj_true[st][per] = np.mean(steps_by_subj[st][per]-np.mean(steps_by_subj[:,:,:], axis=0))
+            step_subj_abs[st][per] = np.mean(np.abs(steps_by_subj[st][per]-np.mean(steps_by_subj[:,:,:], axis=0)))
+        
+    
+
+
+# subj
+
+# stepx2
 
 
 ######################################################################################################
@@ -425,50 +464,97 @@ scatter_style={
 ## Lines -----------
 dashed_line_style={
     'color':'dimgrey',
-    'marker':'--',
+    'linestyle':'--',
     'alpha':0.6,
     'linewidth':0.8
 }
 solid_line_style={
     'color':'dimgrey',
-    'marker':'-',
+    'linestyle':'-',
     'alpha':0.9,
     'linewidth':0.8
 }
 ## Boxplots -----------
 box_style={
-    'boxprops':{}
+    "widths":0.4,
+    "patch_artist":True,
+    'boxprops': {"alpha":0.3,
+                    "facecolor":'lightgrey',
+                    "edgecolor":'black'}
 }
 # - Tap consistency style (Pur-Blu-Gre)
 
-## Plot Subjects ##
+
+
+
+##-----------Plot Subjects-----------##
 if _subject:
     print()
 
-## Plot Patterns ##
+##-----------Plot Patterns-----------##
 if _pattern:
-    fig, (ax, ax1) = plt.subplots(2,1,figsize=(12,8))
+    fig, (ax, ax1) = plt.subplots(2,1,figsize=(14,8))
     idx=np.arange(16)+1
+
+
+    # Plot 1 (Pattern v Absolute Error)
     line = ax.axhline(y=0, **solid_line_style)
 
-    ax.set(xticks=idx, xlabels=[str(x) for x in test_patterns], ylim=(-0.2, 0.8))
+    # VV Change me VV - currently plots tapping range per pattern, not performance comparison.
+    for i in range(len(test_patterns)):
+        ax.scatter(np.full(16,i+1), pattern_mean[i], **scatter_style)
+    #axbp = ax.boxplot(pattern_mean.T, **box_style)
+    ax.set(xticks=idx, xticklabels=[str(x) for x in test_patterns], ylim=(-0.2, 0.8))
     ax.set_title(f"Mean Absolute Difference from Subject Tapped Patterns", **title_style)
     ax.set_xlabel(f"Test Pattern", **label_style)
-    ax.set_ylabel(f"Mean Absolute Difference from Avg. Tap (Velocity)", **label_style)
+    ax.set_ylabel(f"Mean Absolute Difference \nfrom Avg. Tap (Velocity)", **label_style)
 
-    #plot 1
-    # boxplot
+    # Plot 2 (Pattern vs True Error)
     # scatter
+    # boxplot
+    ax1.set(xticks=idx, xticklabels=[str(x) for x in test_patterns], ylim=(-0.2, 0.8))
+    ax1.set_title(f"True Difference (Mean Error) from Subject Tapped Patterns", **title_style)
+    ax1.set_xlabel(f"Test Pattern", **label_style)
+    ax1.set_ylabel(f"True Net Difference \nfrom Avg. Tap (Velocity)", **label_style)
+    fig.legend()
+    plt.show()
 
-
-
-    print()
-
-## Plot Steps ##
+##-----------Plot Steps-----------##
 if _position:
+    fig, (ax, ax1) = plt.subplots(2,1,figsize=(12,8))
+
+    idx=np.arange(16)+1
+
+
+    # Plot 1 (Pattern v Absolute Error)
+    line = ax.axhline(y=0, **dashed_line_style)
+
+    for i in range(16):
+        ax.scatter(np.full(16,i+1), step_patt_true[i], **scatter_style)
+    axbp = ax.boxplot(step_patt_true.T, **box_style)
+    ax.plot(idx, np.mean(step_patt_true[:,:], axis=1), **solid_line_style)
+    ax.set(xticks=idx, ylim=(-0.6, 0.8))
+    ax.set_title(f"Tap Strength v Pattern Avg \n arranged by step #", **title_style)
+    ax.set_xlabel(f"Step #", **label_style)
+    ax.set_ylabel(f"Tap Vel. v Pattern Avg.", **label_style)
+
+    # Plot 2 (Pattern vs True Error)
+    sidx = np.arange(n_subjects_clean)+1
+    line1 = ax1.axhline(y=0, **dashed_line_style)
+    for i in range(16):
+        ax1.scatter(np.full(n_subjects_clean,i+1), step_subj_true[i], **scatter_style)
+    ax1bp = ax1.boxplot(step_subj_true.T, **box_style)
+    ax1.plot(idx, np.mean(step_subj_true[:,:], axis=1), **solid_line_style)
+    ax1.set(xticks=idx, ylim=(-0.6, 0.8))
+    ax1.set_title(f"Tap Strength v Subj Avg \n arranged by step #", **title_style)
+    ax1.set_xlabel(f"Step #", **label_style)
+    ax1.set_ylabel(f"Tap Vel. v Subj Avg.", **label_style)
+    fig.legend()
+    plt.show()
+
     print()
 
-## Plot Tap Consistency ##
+##-----------Plot Tap Consistency-----------##
 if _tapcalibration:
     print()
 
