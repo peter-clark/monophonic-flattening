@@ -23,7 +23,7 @@ _wholedataset = False
 # Which analysis
 _coordinates = False
 _control = True # must be true for some reason not yet found in the plot block
-_subject = False
+_subject = True
 _pattern = False
 _position = True
 _tapcalibration = True
@@ -476,7 +476,7 @@ solid_line_style={
 }
 ## Boxplots -----------
 box_style={
-    "widths":0.4,
+    "widths":0.3,
     "patch_artist":True,
     'boxprops': {"alpha":0.3,
                     "facecolor":'lightgrey',
@@ -489,6 +489,26 @@ box_style={
 
 ##-----------Plot Subjects-----------##
 if _subject:
+    fig, (ax, ax1) = plt.subplots(2,1,figsize=(14,8))
+    sidx=np.arange(n_subjects_clean)+1
+
+    line = ax.axhline(y=0, **dashed_line_style)
+    for i in range(n_subjects_clean):
+        ax.scatter(np.full(16,i+1), subj_abs[i], **scatter_style)
+        ax1.scatter(np.full(16,i+1), subj_true[i], **scatter_style)
+    #axbp = ax.boxplot(pattern_mean.T, **box_style)
+    axbp = ax.boxplot(subj_abs.T, **box_style)
+    ax.set(xticks=sidx, ylim=(-0.2, 0.8))
+    ax.set_title(f"Mean Absolute Difference from Subject Tapped Patterns", **title_style)
+
+    line1 = ax1.axhline(y=0, **dashed_line_style)
+    ax1bp = ax1.boxplot(subj_true.T, **box_style)
+    ax1.set(xticks=sidx, ylim=(-0.5, 0.5))
+    ax1.set_title(f"True Difference (Mean Error) from Subject Tapped Patterns", **title_style)
+    ax1.set_xlabel(f"Test Pattern", **label_style)
+    ax1.set_ylabel(f"True Net Difference \nfrom Avg. Tap (Velocity)", **label_style)
+    fig.legend()
+    plt.show()
     print()
 
 ##-----------Plot Patterns-----------##
@@ -496,23 +516,23 @@ if _pattern:
     fig, (ax, ax1) = plt.subplots(2,1,figsize=(14,8))
     idx=np.arange(16)+1
 
-
     # Plot 1 (Pattern v Absolute Error)
-    line = ax.axhline(y=0, **solid_line_style)
-
-    # VV Change me VV - currently plots tapping range per pattern, not performance comparison.
+    line = ax.axhline(y=0, **dashed_line_style)
     for i in range(len(test_patterns)):
-        ax.scatter(np.full(16,i+1), pattern_mean[i], **scatter_style)
+        #ax.scatter(np.full(16,i+1), pattern_mean[i], **scatter_style)
+        ax.scatter(np.full(n_subjects_clean,i+1), patt_abs[i], **scatter_style)
+        ax1.scatter(np.full(n_subjects_clean,i+1), patt_true[i], **scatter_style)
     #axbp = ax.boxplot(pattern_mean.T, **box_style)
+    axbp = ax.boxplot(patt_abs.T, **box_style)
     ax.set(xticks=idx, xticklabels=[str(x) for x in test_patterns], ylim=(-0.2, 0.8))
     ax.set_title(f"Mean Absolute Difference from Subject Tapped Patterns", **title_style)
     ax.set_xlabel(f"Test Pattern", **label_style)
     ax.set_ylabel(f"Mean Absolute Difference \nfrom Avg. Tap (Velocity)", **label_style)
 
     # Plot 2 (Pattern vs True Error)
-    # scatter
-    # boxplot
-    ax1.set(xticks=idx, xticklabels=[str(x) for x in test_patterns], ylim=(-0.2, 0.8))
+    line1 = ax1.axhline(y=0, **dashed_line_style)
+    ax1bp = ax1.boxplot(patt_true.T, **box_style)
+    ax1.set(xticks=idx, xticklabels=[str(x) for x in test_patterns], ylim=(-0.5, 0.5))
     ax1.set_title(f"True Difference (Mean Error) from Subject Tapped Patterns", **title_style)
     ax1.set_xlabel(f"Test Pattern", **label_style)
     ax1.set_ylabel(f"True Net Difference \nfrom Avg. Tap (Velocity)", **label_style)
@@ -521,36 +541,51 @@ if _pattern:
 
 ##-----------Plot Steps-----------##
 if _position:
-    fig, (ax, ax1) = plt.subplots(2,1,figsize=(12,8))
+    fig, (ax, ax1) = plt.subplots(2,1,figsize=(10,8))
 
     idx=np.arange(16)+1
 
 
-    # Plot 1 (Pattern v Absolute Error)
+    # Plot 1 (Step v Absolute Error)
     line = ax.axhline(y=0, **dashed_line_style)
 
     for i in range(16):
         ax.scatter(np.full(16,i+1), step_patt_true[i], **scatter_style)
     axbp = ax.boxplot(step_patt_true.T, **box_style)
-    ax.plot(idx, np.mean(step_patt_true[:,:], axis=1), **solid_line_style)
+    ax.plot(idx, np.mean(step_patt_true[:,:], axis=1),label="Mean Norm. Pattern Tap Vel.", **solid_line_style)
     ax.set(xticks=idx, ylim=(-0.6, 0.8))
     ax.set_title(f"Tap Strength v Pattern Avg \n arranged by step #", **title_style)
     ax.set_xlabel(f"Step #", **label_style)
     ax.set_ylabel(f"Tap Vel. v Pattern Avg.", **label_style)
 
-    # Plot 2 (Pattern vs True Error)
+    line1 = ax1.axhline(y=0, **dashed_line_style)
+    for i in range(16):
+        ax1.scatter(np.full(16,i+1), step_patt_abs[i], **scatter_style)
+    ax1bp = ax1.boxplot(step_patt_abs.T, **box_style)
+    ax1.plot(idx, np.mean(step_patt_abs[:,:], axis=1),label="Mean Norm. Pattern Tap Vel.", **solid_line_style)
+    ax1.set(xticks=idx, ylim=(-0.1, 0.8))
+    ax1.set_title(f"Tap Strength v Pattern Avg \n arranged by step #", **title_style)
+    ax1.set_xlabel(f"Step #", **label_style)
+    ax1.set_ylabel(f"Tap Vel. v Pattern Avg.", **label_style)
+
+    fig.legend()
+    plt.show()
+
+    # Plot 2 (Step vs True Error)
+    '''
     sidx = np.arange(n_subjects_clean)+1
     line1 = ax1.axhline(y=0, **dashed_line_style)
     for i in range(16):
         ax1.scatter(np.full(n_subjects_clean,i+1), step_subj_true[i], **scatter_style)
     ax1bp = ax1.boxplot(step_subj_true.T, **box_style)
-    ax1.plot(idx, np.mean(step_subj_true[:,:], axis=1), **solid_line_style)
+    ax1.plot(idx, np.mean(step_subj_true[:,:], axis=1),label="Mean Norm. Subject Tap Vel.", **solid_line_style)
     ax1.set(xticks=idx, ylim=(-0.6, 0.8))
     ax1.set_title(f"Tap Strength v Subj Avg \n arranged by step #", **title_style)
     ax1.set_xlabel(f"Step #", **label_style)
     ax1.set_ylabel(f"Tap Vel. v Subj Avg.", **label_style)
     fig.legend()
     plt.show()
+    '''
 
     print()
 
