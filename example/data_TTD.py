@@ -24,7 +24,7 @@ _wholedataset = False
 _coordinates = False
 _control = True # must be true for some reason not yet found in the plot block
 _subject = True
-_pattern = False
+_pattern = True
 _position = True
 _tapcalibration = True
 
@@ -348,6 +348,9 @@ subjects_sorted = np.array([[[0.0 for x in range(16)] for y in range(16)] for z 
 steps_by_patt = np.array([[[0.0 for x in range(n_subjects_clean)] for y in range(16)] for z in range(16)], dtype=float) # subjects patterns steps
 steps_by_subj = np.array([[[0.0 for x in range(16)] for y in range(n_subjects_clean)] for z in range(16)], dtype=float) # patternvalue at idx z, subjects steps
 
+tap_consistency = np.array([[[0.0 for x in range(32)] for y in range(n_subjects_clean)] for z in range(3)], dtype=float)
+tap_by_subject = np.array([[[0.0 for x in range(32)] for y in range(3)] for z in range(n_subjects_clean)], dtype=float)
+
 ## Remove second attempt at control patterns ##
 for n in range(n_subjects):
     cnt=[0,0,0] #ctrl1, ctrl2, pattcount
@@ -373,7 +376,12 @@ for n in range(n_subjects):
     if n in subjects_clean_idx:
         subjects_clean[idx] = subjects_full[n]
         # TODO Tap Consistency as well! One function to get clean subjects
-
+        tap_consistency[0][idx] = taptaps_low[n]
+        tap_consistency[1][idx] = taptaps_mid[n]
+        tap_consistency[2][idx] = taptaps_high[n]
+        tap_by_subject[idx][0] = taptaps_low[n]
+        tap_by_subject[idx][1] = taptaps_mid[n]
+        tap_by_subject[idx][2] = taptaps_high[n]
         idx += 1
 
 ## Sort into ordered by test num and position in the pattern ##
@@ -431,14 +439,6 @@ for p in range(len(test_patterns)):
             step_subj_true[st][per] = np.mean(steps_by_subj[st][per]-np.mean(steps_by_subj[:,:,:], axis=0))
             step_subj_abs[st][per] = np.mean(np.abs(steps_by_subj[st][per]-np.mean(steps_by_subj[:,:,:], axis=0)))
         
-    
-
-
-# subj
-
-# stepx2
-
-
 ######################################################################################################
 ############################### Plot data from test experiments. #####################################
 
@@ -492,6 +492,7 @@ if _subject:
     fig, (ax, ax1) = plt.subplots(2,1,figsize=(14,8))
     sidx=np.arange(n_subjects_clean)+1
 
+    # Plot 1 (Subject Absolute Error)
     line = ax.axhline(y=0, **dashed_line_style)
     for i in range(n_subjects_clean):
         ax.scatter(np.full(16,i+1), subj_abs[i], **scatter_style)
@@ -501,6 +502,7 @@ if _subject:
     ax.set(xticks=sidx, ylim=(-0.2, 0.8))
     ax.set_title(f"Mean Absolute Difference from Subject Tapped Patterns", **title_style)
 
+    # Plot 2 (Subject True Error)
     line1 = ax1.axhline(y=0, **dashed_line_style)
     ax1bp = ax1.boxplot(subj_true.T, **box_style)
     ax1.set(xticks=sidx, ylim=(-0.5, 0.5))
@@ -509,7 +511,6 @@ if _subject:
     ax1.set_ylabel(f"True Net Difference \nfrom Avg. Tap (Velocity)", **label_style)
     fig.legend()
     plt.show()
-    print()
 
 ##-----------Plot Patterns-----------##
 if _pattern:
@@ -546,7 +547,7 @@ if _position:
     idx=np.arange(16)+1
 
 
-    # Plot 1 (Step v Absolute Error)
+    # Plot 1 (Step v True Error)
     line = ax.axhline(y=0, **dashed_line_style)
 
     for i in range(16):
@@ -558,6 +559,7 @@ if _position:
     ax.set_xlabel(f"Step #", **label_style)
     ax.set_ylabel(f"Tap Vel. v Pattern Avg.", **label_style)
 
+    # Plot 2 (Step vs Abs Error)
     line1 = ax1.axhline(y=0, **dashed_line_style)
     for i in range(16):
         ax1.scatter(np.full(16,i+1), step_patt_abs[i], **scatter_style)
@@ -571,27 +573,131 @@ if _position:
     fig.legend()
     plt.show()
 
-    # Plot 2 (Step vs True Error)
-    '''
+    fig, (ax, ax1) = plt.subplots(2,1,figsize=(10,8))
+
+    idx=np.arange(16)+1
+    # Plot 3 (Step v True Error (subj))
+    sidx = np.arange(n_subjects_clean)+1
+    line = ax.axhline(y=0, **dashed_line_style)
+    for i in range(16):
+        ax.scatter(np.full(n_subjects_clean,i+1), step_subj_true[i], **scatter_style)
+    axbp = ax.boxplot(step_subj_true.T, **box_style)
+    ax.plot(idx, np.mean(step_subj_true[:,:], axis=1),label="Mean Norm. Subject Tap Vel.", **solid_line_style)
+    ax.set(xticks=idx, ylim=(-0.6, 0.8))
+    ax.set_title(f"Tap Strength v Subj Avg \n arranged by step #", **title_style)
+    ax.set_xlabel(f"Step #", **label_style)
+    ax.set_ylabel(f"Tap Vel. v Subj Avg.", **label_style)
+
+    # Plot 4 (Step v Abs Error (subj))
     sidx = np.arange(n_subjects_clean)+1
     line1 = ax1.axhline(y=0, **dashed_line_style)
     for i in range(16):
-        ax1.scatter(np.full(n_subjects_clean,i+1), step_subj_true[i], **scatter_style)
-    ax1bp = ax1.boxplot(step_subj_true.T, **box_style)
-    ax1.plot(idx, np.mean(step_subj_true[:,:], axis=1),label="Mean Norm. Subject Tap Vel.", **solid_line_style)
-    ax1.set(xticks=idx, ylim=(-0.6, 0.8))
+        ax1.scatter(np.full(n_subjects_clean,i+1), step_subj_abs[i], **scatter_style)
+    ax1bp = ax1.boxplot(step_subj_abs.T, **box_style)
+    ax1.plot(idx, np.mean(step_subj_abs[:,:], axis=1),label="Mean Norm. Subject Tap Vel.", **solid_line_style)
+    ax1.set(xticks=idx, ylim=(-0.1, 0.8))
     ax1.set_title(f"Tap Strength v Subj Avg \n arranged by step #", **title_style)
     ax1.set_xlabel(f"Step #", **label_style)
     ax1.set_ylabel(f"Tap Vel. v Subj Avg.", **label_style)
     fig.legend()
     plt.show()
-    '''
-
-    print()
 
 ##-----------Plot Tap Consistency-----------##
 if _tapcalibration:
-    print()
+    # tap_consistency [3[n_subj_clean[32]]]
+    # tap_by_subject [n_subj_clean[3[32]]]
+
+    # Plot 1 (Tap Consistency by Test over all Subjects)
+    fig = plt.figure(figsize=(13,6))
+    ax = fig.add_subplot()
+
+    colors_light=['mediumpurple','lightblue','lightgreen']
+    colors_dark=['indigo','royalblue','forestgreen']
+    tapidx = np.arange(32)+1
+
+    for i in range(n_subjects_clean):
+        ax.scatter(tapidx, tap_consistency[0,i], color=colors_light[2], marker='x', linestyle='--', linewidth=1)
+        ax.scatter(tapidx, tap_consistency[1,i], color=colors_light[1], marker='x', linestyle='--', linewidth=1)
+        ax.scatter(tapidx, tap_consistency[2,i], color=colors_light[0], marker='x', linestyle='--', linewidth=1)
+
+    bp_low = ax.boxplot(tap_consistency[0], patch_artist=True, boxprops=dict(linewidth=1, alpha=0.3, facecolor=colors_light[2]))
+    bp_mid = ax.boxplot(tap_consistency[1], patch_artist=True, boxprops=dict(linewidth=1, alpha=0.3, facecolor=colors_light[1]))
+    bp_high = ax.boxplot(tap_consistency[2], patch_artist=True, boxprops=dict(linewidth=1, alpha=0.3, facecolor=colors_light[0]))
+
+    print(tap_consistency.shape)
+    print(tap_consistency[0].shape)
+
+    ax.plot(tapidx, np.mean(tap_consistency[0], axis=0), color=colors_dark[2], label="Mean Tap Low")
+    ax.plot(tapidx, np.mean(tap_consistency[1], axis=0), color=colors_dark[1], label="Mean Tap Mid")
+    ax.plot(tapidx, np.mean(tap_consistency[2], axis=0), color=colors_dark[0], label="Mean Tap High")
+
+    ax.axhline(y=42,color='seagreen', alpha=0.6, linestyle='--', label='Low / Mid Boundary')
+    ax.axhline(y=84,color='slateblue', alpha=0.6, linestyle='--', label='Mid / High Boundary')
+
+    ax.set(ylim=[0,127], yticks=[0,42,84,127], xlim=[1,32],xticks=tapidx)
+    ax.set_title(f"Progressive Tapping Consistency over all Subjects", fontsize=14, fontfamily='serif',fontweight='book')
+    ax.set_xlabel("Tap Order", fontsize=12, fontfamily='sans-serif')
+    ax.set_ylabel("Tapped Velocity", fontsize=12, fontfamily='sans-serif')
+    plt.legend(loc='upper left', bbox_to_anchor=(-0.15, 0.95),prop={'size': 8})
+    plt.show()
+
+
+    # Plot 2 (Tap Consistency)
+    fig = plt.figure(figsize=(12,6))
+    ax = fig.add_subplot()
+    subjidx = np.arange(n_subjects_clean)+1
+    ax.grid(color='lightgray', linestyle='-', linewidth=0.6, alpha=0.7, axis='y')
+
+    pos_low = subjidx - 0.25
+    pos_high = subjidx + 0.25
+    width = 0.20
+
+    line = ax.axhline(y=0,color='black', alpha=0.6, linestyle='--', label='Middle of Target Range')
+    p1 = (n_subjects_clean+1,-float(0.33/2))
+    p2 = (0.0,float(0.33/2))
+    rect = mpl.patches.Rectangle((p2[0], p1[1]), p1[0] - p2[0], p2[1] - p1[1], linewidth=1, edgecolor='darkgreen', facecolor='lightgreen', alpha=0.15, linestyle='--', label='Target Range (+/-)')
+    ax.add_patch(rect)
+
+    _tap_by_subject = tap_by_subject
+    for i in range(n_subjects_clean):
+        # Abs
+        """ _tap_by_subject[i][2] = np.abs((tap_by_subject[i][2]-105))/127
+        _tap_by_subject[i][1] = np.abs((tap_by_subject[i][1]-63))/127
+        _tap_by_subject[i][0] = np.abs((tap_by_subject[i][0]-21))/127 """
+        # True
+        _tap_by_subject[i][2] = (tap_by_subject[i][2]-105)/127
+        _tap_by_subject[i][1] = (tap_by_subject[i][1]-63)/127
+        _tap_by_subject[i][0] = (tap_by_subject[i][0]-21)/127
+    
+    bp1_low = ax.boxplot(_tap_by_subject[:,0,:].T, positions=pos_low, widths=width, patch_artist=True, showfliers=True, boxprops=dict(facecolor=colors_light[2], alpha=0.5),flierprops=dict(marker='x',markeredgecolor=colors_light[2], markersize='5'))
+    bp1_mid = ax.boxplot(_tap_by_subject[:,1,:].T, positions=subjidx, widths=width, patch_artist=True, showfliers=True, boxprops=dict(facecolor=colors_light[1], alpha=0.5),flierprops=dict(marker='x',markeredgecolor=colors_light[1], markersize='5'))
+    bp1_high = ax.boxplot(_tap_by_subject[:,2,:].T, positions=pos_high, widths=width, patch_artist=True, showfliers=True, boxprops=dict(facecolor=colors_light[0], alpha=0.5),flierprops=dict(marker='x',markeredgecolor=colors_light[0], markersize='5'))
+
+    for i in range(n_subjects_clean):
+        ax.plot(pos_low[i], np.mean(_tap_by_subject[:,0]), color = colors_dark[2], marker='x', alpha=1)
+        ax.plot(subjidx[i], np.mean(_tap_by_subject[:,1]), color = colors_dark[1], marker='x', alpha=1)
+        ax.plot(pos_high[i], np.mean(_tap_by_subject[:,2]), color = colors_dark[0], marker='x', alpha=1)
+        
+
+    # Title and axes values
+    # ax.set(xlim=[0,n_subjects_clean+1], ylim=[-0.06,1.0], xticks=subjidx, xticklabels=subjidx, yticks=np.arange(start=0.0,stop=1.0,step=0.1))
+    ax.set(xlim=[0,n_subjects_clean+1], ylim=[-0.9,0.7], xticks=subjidx, xticklabels=subjidx, yticks=np.arange(start=-0.9,stop=0.7,step=0.1))
+    
+    ax.set_title(f"Subject Mean Abs. Err. for Tap Consistency", fontsize=14, fontfamily='serif',fontweight='book')
+    ax.set_xlabel("Subject #", fontsize=12, fontfamily='sans-serif')
+    ax.set_ylabel("Mean Tapped Error", fontsize=12, fontfamily='sans-serif')
+
+    # Add and Remove the dummy lines to make legend work
+    line1, = ax1.plot([1,1], color='blue')
+    line2, = ax1.plot([1,1], color='green')
+    line3, = ax1.plot([1,1], color='red')
+    line1.set_visible(False)
+    line2.set_visible(False)
+    line3.set_visible(False)
+
+    ax.legend([bp1_low["boxes"][0], bp1_mid["boxes"][0], bp1_high["boxes"][0], rect, line], ('Low Tap Range', 'Mid Tap Range', 'High Tap Range', 'Target Range (+/-)', 'Middle of Target Range'))
+    fig.tight_layout()
+    plt.show()
 
 
 # TODO: (true and abs errors necessary to highlight different aspects of behavior)
