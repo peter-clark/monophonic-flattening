@@ -879,7 +879,7 @@ if _tapcalibration:
         print("F-value:", anova_result.statistic)
         print("p-value:", anova_result.pvalue)
         for i in range(len(all_quarters)):
-            print(f"Q{i}: {np.mean(all_quarters[i])} ({np.std(all_quarters[i])})")
+            print(f"Q{i+1}: {np.mean(all_quarters[i])} ({np.std(all_quarters[i])})")
 
 
 mse = np.array([0.0 for x in range(6)], dtype=float)
