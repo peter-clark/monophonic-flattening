@@ -57,7 +57,8 @@ def flat_from_patt(pattern):
     flattened_patterns = [[0.0 for x in range(len(pattern_LMH))]for y in range(6)]
     true_sync_salience = [7,1,2,1, 3,1,2,1, 4,1,2,1, 5,1,2,1]
     metric_sal_strength = [6,0,1,0, 2,0,1,0, 3,0,1,0, 4,0,1,0]
-    sync_strength = [0,1,0,2, 0,1,0,3, 0,1,0,4, 0,1,0,6] 
+    sync_strength = [0,6,0,1, 0,2,0,1, 0,3,0,1, 0,5,0,1]
+    #sync_strength = [0,1,0,2, 0,1,0,3, 0,1,0,4, 0,1,0,6] 
 
     # Count multi-hits in same channel on step
     for i in range(len(pattern_LMH)):

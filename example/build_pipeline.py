@@ -13,7 +13,7 @@ s = time.perf_counter()
 ## Initalize variables
 dir = os.getcwd()
 _savepatterns = False
-_saveflattened = False
+_saveflattened = True
 _saveembeddings = False
 _savemodels = True
 _savepredictions = True

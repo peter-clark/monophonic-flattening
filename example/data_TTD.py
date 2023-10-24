@@ -24,11 +24,11 @@ _wholedataset = False
 # Which analysis
 _coordinates = False
 _control = True # must be true for some reason not yet found in the plot block
-_subject = False
+_subject = True
 _pattern = False
 _position = False
 _tapcalibration = False #necessary for anovas
-_anova = False
+_anova = True
 
 ######################################################################################################
 ########################## Variable declaration and subject data loading #############################
@@ -63,6 +63,11 @@ mds_pos_file = open(pickle_dir+"mds_pos.pkl", 'rb')
 mds_pos = pickle.load(mds_pos_file) 
 mds_pos_file.close()
 
+alg_file = open(os.getcwd()+"/flat/flatbyalg.pkl", 'rb')
+flattened_all = pickle.load(alg_file)
+alg_file.close()
+
+
 # plot coordinates and selected patterns
 sections=[[]for x in range(16)]
 names_in_section=[[]for x in range(16)] 
@@ -72,7 +77,7 @@ tf.make_pos_grid(mds_pos,sections,pattern_idxs,all_names,names_in_section, _coor
 
 ######################################################################################################
 ################################## Main Analyses Data Structures #####################################
-algorithms = np.array([[[0.0 for x in range(16)] for y in range(16)] for z in range(7)], dtype=float) # 6 algs + mbt
+algorithms = np.array([[[0.0 for x in range(16)] for y in range(16)] for z in range(6)], dtype=float) # 6 algs
 subjects = np.array([[[0.0 for x in range(17)] for y in range(18)] for z in range(n_subjects)], dtype=float) #[patt#(1), testresults(16)]
 controls = np.array([[[0.0 for x in range(16)] for y in range(4)] for z in range(n_subjects)], dtype=float) # 16steps x 4(2x2) x N
 ctrl_cnt = [0,0]
@@ -81,6 +86,11 @@ print(f"{len(data)%18} & {len(data)}/18={(len(data)-1)/18}") # Data check
 subject_count = 0
 test_count = 0
 
+flattened = np.array([[[0.0 for x in range(16)] for y in range(16)] for z in range(6)])
+for i in range(len(test_patterns)):
+    for j in range(6):
+        flattened[j][i]=flattened_all[j][test_patterns[i]]
+        
 ## Sort into data structs. ##
 ## Go through every test and sort. ##
 for test in range(len(data)):
@@ -104,10 +114,12 @@ for test in range(len(data)):
         alg_hold[3] = np.asarray(data[test][68:84], dtype=float) #d2
         alg_hold[4] = np.asarray(data[test][-32:-16], dtype=float) #sc1
         alg_hold[5] = np.asarray(data[test][-16:], dtype=float) #sc2
-        for i in range(len(test_patterns)):
+        """ for i in range(len(test_patterns)):
             if test_patterns[i] == patt_number:
                 for j in range(len(alg_hold)):
-                    algorithms[j][i] = alg_hold[j]
+                    algorithms[j][i] = alg_hold[j] """
+        
+        algorithms = flattened
 
         # Sort into by subject struct (to be later cleaned)
         tap_data = np.array([0.0 for x in range(17)]) # name + tap
@@ -424,6 +436,20 @@ step_patt_true = np.array([[0.0 for x in range(16)] for y in range(16)], dtype=f
 step_subj_abs = np.array([[0.0 for x in range(n_subjects_clean)] for y in range(16)], dtype=float)
 step_subj_true = np.array([[0.0 for x in range(n_subjects_clean)] for y in range(16)], dtype=float)
 
+## Normalize Subjects and Patterns ##
+pattern_mean_norm = np.array([[0.0 for x in range(16)] for y in range(16)], dtype=float)
+for s in range(n_subjects_clean):
+    sbj = subjects_sorted[s]
+    
+    min = np.min(sbj[sbj>0.05])
+    max = np.max(sbj[sbj>0.05])
+    subj_sort_norm = subjects_sorted.copy()  # Create a copy to avoid modifying the original array
+    subj_sort_norm[subj_sort_norm > 0.05] = (subj_sort_norm[subj_sort_norm > 0.05] - min) / (max - min)
+    pattern_mean_norm += subj_sort_norm[s]
+pattern_mean_norm /= n_subjects_clean
+subj_true_norm = np.array([[0.0 for x in range(16)] for y in range(n_subjects_clean)], dtype=float)
+subj_abs_norm = np.array([[0.0 for x in range(16)] for y in range(n_subjects_clean)], dtype=float)
+
 for p in range(len(test_patterns)):
     for per in range(n_subjects_clean):
         patt_true[p][per] = np.mean(patterns_sorted[p][per]-pattern_mean[p])
@@ -432,19 +458,26 @@ for p in range(len(test_patterns)):
         subj_true[per][p] = np.mean(subjects_sorted[per][p] - pattern_mean[p])
         subj_abs[per][p] = np.mean(np.abs(subjects_sorted[per][p] - pattern_mean[p]))
 
+        subj_true_norm[per][p] = np.mean(subj_sort_norm[per][p]-pattern_mean_norm[p])
+        subj_abs_norm[per][p] = np.mean(np.abs(subj_sort_norm[per][p]-pattern_mean_norm[p]))
+
         for st in range(16):
         ## !! It might be axis=0, not 100% sure
             step_patt_true[st][p] = np.mean(steps_by_patt[st][p]-np.mean(steps_by_patt[:,:,:], axis=0))
             step_patt_abs[st][p] = np.mean(np.abs(steps_by_patt[st][p]-np.mean(steps_by_patt[:,:,:], axis=0)))
             step_subj_true[st][per] = np.mean(steps_by_subj[st][per]-np.mean(steps_by_subj[:,:,:], axis=0))
             step_subj_abs[st][per] = np.mean(np.abs(steps_by_subj[st][per]-np.mean(steps_by_subj[:,:,:], axis=0)))
+
+
+
+
         
 ######################################################################################################
 ############################### Plot data from test experiments. #####################################
 
 ## Plotstyles for Consistency ##
 ## Labels and Titles ##
-title_style={
+title_style={ 
     'fontsize':14,
     'fontfamily':'serif',
     'fontweight':'book'
@@ -510,6 +543,29 @@ if _subject:
     fig.legend()
     plt.show()
 
+    fig, (ax, ax1) = plt.subplots(2,1,figsize=(14,8))
+    sidx=np.arange(n_subjects_clean)+1
+
+    # normalized
+    # Plot 1 (Subject Absolute Error)
+    line = ax.axhline(y=0, **dashed_line_style)
+    for i in range(n_subjects_clean):
+        ax.scatter(np.full(16,i+1), subj_abs_norm[i], **scatter_style)
+        ax1.scatter(np.full(16,i+1), subj_true_norm[i], **scatter_style)
+    #axbp = ax.boxplot(pattern_mean.T, **box_style)
+    axbp = ax.boxplot(subj_abs_norm.T, **box_style)
+    ax.set(xticks=sidx, ylim=(-0.2, 0.8))
+    ax.set_title(f"Normalized Mean Absolute Difference from Subject Tapped Patterns", **title_style)
+
+    # Plot 2 (Subject True Error)
+    line1 = ax1.axhline(y=0, **dashed_line_style)
+    ax1bp = ax1.boxplot(subj_true_norm.T, **box_style)
+    ax1.set(xticks=sidx, ylim=(-0.5, 0.5))
+    ax1.set_title(f"Normalized True Difference (Mean Error) from Subject Tapped Patterns", **title_style)
+    ax1.set_xlabel(f"Test Pattern", **label_style)
+    ax1.set_ylabel(f"True Net Difference \nfrom Avg. Tap (Velocity)", **label_style)
+    fig.legend()
+    plt.show()
 ##-----------Plot Patterns-----------##
 if _pattern:
     fig, (ax, ax1) = plt.subplots(2,1,figsize=(14,8))
@@ -703,7 +759,6 @@ if _tapcalibration:
 ############################### ANOVAs and Tukeys HSD Tests ##########################################
 
 
-
 if _anova:
     pd.set_option('display.float_format', '{:.4f}'.format)
     np.set_printoptions(precision=4)
@@ -746,7 +801,7 @@ if _anova:
         print(tky2_df)
 
     # Subjects (if necessary)
-    _subj_stats = False
+    _subj_stats = True
     if _subj_stats:
         # subj_true
         print(subj_true.shape)
@@ -756,9 +811,17 @@ if _anova:
         tkysubj = pairwise_tukeyhsd(np.concatenate(subj_abs), labels, alpha=0.05)
         tkysubj_df = pd.DataFrame(data=tkysubj._results_table.data[1:], columns=tkysubj._results_table.data[0])
         #print(tkysubj_df[tkysubj_df.reject==True])
+
+        anova_subj_norm = stats.f_oneway(*subj_abs_norm)
+        print(f"Pattern F-Stat: {anova_subj_norm.statistic:.4f} P-Value: ({anova_subj_norm.pvalue:.4f})")
+        labels = np.array([str(i+1) for i in range(len(subj_true)) for _ in range(len(subj_true[i]))])
+        tkysubj = pairwise_tukeyhsd(np.concatenate(subj_abs_norm), labels, alpha=0.05)
+        tkysubj_df = pd.DataFrame(data=tkysubj._results_table.data[1:], columns=tkysubj._results_table.data[0])
+        #print(tkysubj_df[(tkysubj_df.reject==True) & (tkysubj_df.meandiff>0.05)])
+
     
     # Patterns
-    _patt_stats = True
+    _patt_stats = False
     if _patt_stats:
         #patt_true
         print(patt_true.shape)
@@ -775,9 +838,56 @@ if _anova:
 # - Check distribution of mean errors for subjects and alg predictions (one large error can skew mean)
 # - Attempt scaling subjects a. overall and b. by pattern inidividually (normalize by individual or by tap tap results)
 
+## Plot Pattern Means Raw/Norm. Subject Means Raw/Norm, Alg. ##
+_contours = True
+if _contours:
+    for i in range(4):
+        fig, axes = plt.subplots(2, 2, figsize=(12, 7))
+        p1=axes[0,0]
+        p2=axes[0,1]
+        p3=axes[1,0]
+        p4=axes[1,1]
+        idx = np.arange(16)+1
+        j = i*4
+        p1.plot(idx, pattern_mean_norm[j], color='black', linestyle='-', linewidth=1, alpha=0.7)
+        p2.plot(idx, pattern_mean_norm[j+1], color='black', linestyle='-', linewidth=1, alpha=0.7)
+        p3.plot(idx, pattern_mean_norm[j+2], color='black', linestyle='-', linewidth=1, alpha=0.7)
+        p4.plot(idx, pattern_mean_norm[j+3], color='black', linestyle='-', linewidth=1, alpha=0.7)
+
+        p1.plot(idx, pattern_mean[j], color='black', linestyle='--', linewidth=1, alpha=0.7)
+        p2.plot(idx, pattern_mean[j+1], color='black', linestyle='--', linewidth=1, alpha=0.7)
+        p3.plot(idx, pattern_mean[j+2], color='black', linestyle='--', linewidth=1, alpha=0.7)
+        p4.plot(idx, pattern_mean[j+3], color='black', linestyle='--', linewidth=1, alpha=0.7)
+
+        p1.plot(idx, algorithms[2][j], color='green', linestyle='--', linewidth=1, alpha=0.7)
+        p2.plot(idx, algorithms[2][j+1], color='green', linestyle='--', linewidth=1, alpha=0.7)
+        p3.plot(idx, algorithms[2][j+2], color='green', linestyle='--', linewidth=1, alpha=0.7)
+        p4.plot(idx, algorithms[2][j+3], color='green', linestyle='--', linewidth=1, alpha=0.7)
+
+        """ p1.plot(idx, algorithms[0][j], color='purple', linestyle='--', linewidth=0.7, alpha=0.6)
+        p2.plot(idx, algorithms[0][j+1], color='purple', linestyle='--', linewidth=0.7, alpha=0.6)
+        p3.plot(idx, algorithms[0][j+2], color='purple', linestyle='--', linewidth=0.7, alpha=0.6)
+        p4.plot(idx, algorithms[0][j+3], color='purple', linestyle='--', linewidth=0.7, alpha=0.6) """
+        
+        p1.set_title("")
+        p1.set_xlabel("")
+        p1.set_ylabel("")
+
+        p2.set_title("")
+        p2.set_ylabel("")
+        p2.set_xlabel("")
+
+        p3.set_title("")
+        p3.set_xlabel(" ")
+        p3.set_ylabel("")
+
+        p4.set_title("")
+        p4.set_xlabel(" ")
+        p4.set_ylabel("")
+        plt.show()
 
 ## Normalization By Individual Behavior ##
-_norm = True
+_norm = False
 if _norm:
     fig, (ax, ax1) = plt.subplots(2,1,figsize=(10,8))
     hist_tap = subjects_sorted[:].ravel()
