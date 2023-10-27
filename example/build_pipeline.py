@@ -13,10 +13,10 @@ s = time.perf_counter()
 ## Initalize variables
 dir = os.getcwd()
 _savepatterns = False
-_saveflattened = True
+_saveflattened = False
 _saveembeddings = False
-_savemodels = True
-_savepredictions = True
+_savemodels = False
+_savepredictions = False
 #_savepredictions = _savemodels
 
 ## Extract all patterns and names from MIDI files in (+sub)folder
@@ -61,6 +61,30 @@ if _saveembeddings:
                 writer.writerow(embeddings[i][pos])
                 f.write(str(embeddings[i][pos])+"\n") if pos != len(embeddings[i]-1) else f.write(str(embeddings[i][pos]))
             g.close()
+def find_LMH(note):
+    if(int(note)==0):
+        return []
+    channel = desc.GM_dict[int(note)][1]
+    if(channel=="low"):
+        n = 1
+    elif(channel=="mid"):
+        n = 2
+    else:
+        n = 3 # "high"
+    return n
+
+## Used in flat_from_patt
+def get_LMH(pattern):
+    pattern_LMH = []
+    for step in range(len(pattern)):
+        lmh = []
+        for note in pattern[step]:
+            if pattern[step] != "":
+                lmh.append(find_LMH(note))
+        pattern_LMH.append(lmh)
+    return pattern_LMH
+
+            
 
 ## Apply flattening algorithms to all patterns
 #       [continuous1, continuous2, discrete1, discrete2]
@@ -68,8 +92,57 @@ flat_names = ["continuous1", "discrete1", "continuous2", "discrete2","semicontin
 flattened_dir = dir + "/flattened/"
 all_flat = [[] for x in range(len(all_pattlists))]
 flat_by_alg = [[[] for x in range(len(all_pattlists))] for y in range(6)]
+notes = np.array([[0, 0, 0, 0] for y in range(2)], dtype=float) # notes / rests
+test_patterns = [894, 423, 1367, 249, 939, 427, 590, 143, 912, 580, 1043, 673, 1359, 736, 678, 1355]
+all_nc = np.array([], dtype=float)
+all_nc3 = np.array([], dtype=float)
 for pattern in range(len(all_pattlists)):
     #print(all_names[pattern])
+    p = get_LMH(all_pattlists[pattern])
+    note_cnt = np.array([0 for x in range(16)], dtype=float)
+    note_cnt3 = np.array([[0 for x in range(16)] for y in range(3)], dtype=float)
+    for st in range(len(p)): # This computes note counts
+        if pattern in test_patterns:
+            rng=2
+        else:
+            rng=1
+        for i in range(rng):
+            if len(p[st])==0:
+                notes[i][0]+=1
+                note_cnt[st]=0
+                note_cnt3[:,st]=0
+            else:
+                for n in range(len(p[st])):
+                    note_cnt[st]+=1
+                    if p[st][n]==1:
+                        notes[i][1]+=1
+                        note_cnt3[0][st]+=1
+                    elif p[st][n]==2:
+                        notes[i][2]+=1
+                        note_cnt3[1][st]+=1
+                    else:
+                        notes[i][3]+=1
+                        note_cnt3[2][st]+=1
+    note_cnt /= np.max(note_cnt)
+    sumsal=0
+    ac3=np.array([0.0 for x in range(16)], dtype=float)
+    for i in range(3):
+        if np.sum(note_cnt3[i]>0):
+            sumsal += (1 / ((np.sum(note_cnt3[i])) / (np.sum(note_cnt))))
+    for i in range(3):
+        if np.sum(note_cnt3[i]>0):
+            note_cnt3[i] *= ((1 / ( (np.sum(note_cnt3[i])) / (np.sum(note_cnt)) ) ) / float(sumsal))
+        if i==0:
+            note_cnt3[i] *= 3 # low freq bias
+        elif i==1:
+            note_cnt3[i] *= 2 # mid freq bias
+        if rng==2:
+            ac3 += note_cnt3[i]
+    if rng==2:
+        all_nc = np.append(all_nc, note_cnt, axis=0)
+        ac3 /= np.max(ac3)
+        all_nc3 = np.append(all_nc3, ac3)
+    print(f"{pattern}:{note_cnt}\n{note_cnt3}")             
     flat = flatten.flat_from_patt(all_pattlists[pattern])
     #print(len(flat))
     #print(len(flat[1]))
@@ -94,8 +167,18 @@ for pattern in range(len(all_pattlists)):
 file = open(os.getcwd()+"/flat/flatbyalg.pkl", 'wb')
 pickle.dump(flat_by_alg, file, -1)
 file.close()
-print("Patterns have been flattened\n")
 
+file = open(os.getcwd()+"/data/overall_note_density.pkl", 'wb')
+pickle.dump(all_nc, file, -1)
+file.close()
+
+file = open(os.getcwd()+"/data/channel_note_density.pkl", 'wb')
+pickle.dump(all_nc3, file, -1)
+file.close()
+
+print("Patterns have been flattened\n")
+for i in range(2):
+    print(notes/np.sum(notes[i]))
 
 ## Send flattened patterns + embedding coordinates to model to train
 #       (4 x 4) -> embeddings x patterns 

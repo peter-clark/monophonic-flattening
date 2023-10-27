@@ -24,11 +24,11 @@ _wholedataset = False
 # Which analysis
 _coordinates = False
 _control = True # must be true for some reason not yet found in the plot block
-_subject = True
+_subject = False
 _pattern = False
 _position = False
 _tapcalibration = False #necessary for anovas
-_anova = True
+_anova = False
 
 ######################################################################################################
 ########################## Variable declaration and subject data loading #############################
@@ -54,6 +54,24 @@ with open(taptap_f) as results:
     for row in reader:
         taptap.append(row)
     results.close()
+
+# Musical Experience
+musicality = []
+musicality_f = os.getcwd()+"/results/subjectinfo.csv"
+with open(musicality_f) as results:
+    reader = csv.reader(results)
+    for row in reader:
+        musicality.append(row)
+    results.close()
+
+# Load Pattern Stats
+note_density_f = open(pickle_dir+"overall_note_density.pkl","rb")
+note_density=pickle.load(note_density_f)
+note_density_f.close()
+note_density_weighted_f = open(pickle_dir+"channel_note_density.pkl", "rb")
+note_density_weighted=pickle.load(note_density_weighted_f)
+note_density_weighted_f.close()
+print(note_density_weighted)
 
 # Load names and coordinates from pickle files
 name_file = open(pickle_dir+"pattern_names.pkl","rb")
@@ -90,6 +108,10 @@ flattened = np.array([[[0.0 for x in range(16)] for y in range(16)] for z in ran
 for i in range(len(test_patterns)):
     for j in range(6):
         flattened[j][i]=flattened_all[j][test_patterns[i]]
+
+music = np.array([0.0 for x in range(len(musicality)-1)], dtype=float)
+for i in range((n_subjects)):
+    music[i]=musicality[i+1][7]
         
 ## Sort into data structs. ##
 ## Go through every test and sort. ##
@@ -386,6 +408,7 @@ for n in range(n_subjects):
 
 ## Extract only results from non-outlier subjects ##
 idx=0
+music_clean = np.array([0.0 for x in range(n_subjects_clean)], dtype=float)
 for n in range(n_subjects):
     if n in subjects_clean_idx:
         subjects_clean[idx] = subjects_full[n]
@@ -396,6 +419,7 @@ for n in range(n_subjects):
         tap_by_subject[idx][0] = taptaps_low[n]
         tap_by_subject[idx][1] = taptaps_mid[n]
         tap_by_subject[idx][2] = taptaps_high[n]
+        music_clean[idx]=music[n]
         idx += 1
 
 ## Sort into ordered by test num and position in the pattern ##
@@ -437,12 +461,14 @@ step_subj_abs = np.array([[0.0 for x in range(n_subjects_clean)] for y in range(
 step_subj_true = np.array([[0.0 for x in range(n_subjects_clean)] for y in range(16)], dtype=float)
 
 ## Normalize Subjects and Patterns ##
+subj_ranges = np.array([[0.0, 0.0] for x in range(n_subjects_clean)], dtype=float)
 pattern_mean_norm = np.array([[0.0 for x in range(16)] for y in range(16)], dtype=float)
 for s in range(n_subjects_clean):
     sbj = subjects_sorted[s]
     
     min = np.min(sbj[sbj>0.05])
     max = np.max(sbj[sbj>0.05])
+    subj_ranges[s] = [min, max]
     subj_sort_norm = subjects_sorted.copy()  # Create a copy to avoid modifying the original array
     subj_sort_norm[subj_sort_norm > 0.05] = (subj_sort_norm[subj_sort_norm > 0.05] - min) / (max - min)
     pattern_mean_norm += subj_sort_norm[s]
@@ -471,7 +497,6 @@ for p in range(len(test_patterns)):
 
 
 
-        
 ######################################################################################################
 ############################### Plot data from test experiments. #####################################
 
@@ -817,7 +842,7 @@ if _anova:
         labels = np.array([str(i+1) for i in range(len(subj_true)) for _ in range(len(subj_true[i]))])
         tkysubj = pairwise_tukeyhsd(np.concatenate(subj_abs_norm), labels, alpha=0.05)
         tkysubj_df = pd.DataFrame(data=tkysubj._results_table.data[1:], columns=tkysubj._results_table.data[0])
-        #print(tkysubj_df[(tkysubj_df.reject==True) & (tkysubj_df.meandiff>0.05)])
+        print(tkysubj_df[(tkysubj_df.reject==True) & (tkysubj_df.meandiff>0.05)])
 
     
     # Patterns
@@ -839,7 +864,24 @@ if _anova:
 # - Attempt scaling subjects a. overall and b. by pattern inidividually (normalize by individual or by tap tap results)
 
 ## Plot Pattern Means Raw/Norm. Subject Means Raw/Norm, Alg. ##
-_contours = True
+true_sync_salience = np.array([5,1,2,1, 3,1,2,1, 4,1,2,1, 3,1,2,1], dtype=float)
+true_sync_salience2 = np.array([3,1,2,1, 3,1,2,1, 3,1,2,1, 3,1,2,1], dtype=float)
+true_sync_salience /= 5 
+true_sync_salience2 /= 3
+#true_sync_salience2 *= np.max(pattern_mean_norm)
+pmn=pattern_mean_norm.copy()
+pmn2=pattern_mean_norm.copy()
+pk = np.tile(true_sync_salience, 16)
+bbb = np.tile(true_sync_salience2, 16)
+for i in range(16):
+    pmn[i] -= true_sync_salience*np.max(pmn)
+    pmn2[i] -= true_sync_salience2
+pmn_all = pmn.copy()
+#pmn[pmn<0.0]=0.0
+pmn2[pmn2<0.0]=0.0
+m_alg = np.array([0.0 for x in range(16)], dtype=float)
+
+_contours = False
 if _contours:
     for i in range(4):
         fig, axes = plt.subplots(2, 2, figsize=(12, 7))
@@ -854,15 +896,25 @@ if _contours:
         p3.plot(idx, pattern_mean_norm[j+2], color='black', linestyle='-', linewidth=1, alpha=0.7)
         p4.plot(idx, pattern_mean_norm[j+3], color='black', linestyle='-', linewidth=1, alpha=0.7)
 
-        p1.plot(idx, pattern_mean[j], color='black', linestyle='--', linewidth=1, alpha=0.7)
-        p2.plot(idx, pattern_mean[j+1], color='black', linestyle='--', linewidth=1, alpha=0.7)
-        p3.plot(idx, pattern_mean[j+2], color='black', linestyle='--', linewidth=1, alpha=0.7)
-        p4.plot(idx, pattern_mean[j+3], color='black', linestyle='--', linewidth=1, alpha=0.7)
+        p1.plot(idx, pmn[j], color='black', linestyle='-.', linewidth=1, alpha=0.7)
+        p2.plot(idx, pmn[j+1], color='black', linestyle='-.', linewidth=1, alpha=0.7)
+        p3.plot(idx, pmn[j+2], color='black', linestyle='-.', linewidth=1, alpha=0.7)
+        p4.plot(idx, pmn[j+3], color='black', linestyle='-.', linewidth=1, alpha=0.7)
 
-        p1.plot(idx, algorithms[2][j], color='green', linestyle='--', linewidth=1, alpha=0.7)
-        p2.plot(idx, algorithms[2][j+1], color='green', linestyle='--', linewidth=1, alpha=0.7)
-        p3.plot(idx, algorithms[2][j+2], color='green', linestyle='--', linewidth=1, alpha=0.7)
-        p4.plot(idx, algorithms[2][j+3], color='green', linestyle='--', linewidth=1, alpha=0.7)
+        p1.plot(idx, pmn2[j], color='black', linestyle=':', linewidth=1, alpha=0.7)
+        p2.plot(idx, pmn2[j+1], color='black', linestyle=':', linewidth=1, alpha=0.7)
+        p3.plot(idx, pmn2[j+2], color='black', linestyle=':', linewidth=1, alpha=0.7)
+        p4.plot(idx, pmn2[j+3], color='black', linestyle=':', linewidth=1, alpha=0.7)
+
+        p1.plot(idx, algorithms[2][j], color='blue', linestyle='--', linewidth=1, alpha=0.7)
+        p2.plot(idx, algorithms[2][j+1], color='blue', linestyle='--', linewidth=1, alpha=0.7)
+        p3.plot(idx, algorithms[2][j+2], color='blue', linestyle='--', linewidth=1, alpha=0.7)
+        p4.plot(idx, algorithms[2][j+3], color='blue', linestyle='--', linewidth=1, alpha=0.7)
+
+        m_alg[j] = np.mean(np.abs(algorithms[2][j]-pattern_mean_norm[j]))
+        m_alg[j+1] = np.mean(np.abs(algorithms[2][j+1]-pattern_mean_norm[j+1]))
+        m_alg[j+2] = np.mean(np.abs(algorithms[2][j+2]-pattern_mean_norm[j+2]))
+        m_alg[j+3] = np.mean(np.abs(algorithms[2][j+3]-pattern_mean_norm[j+3]))
 
         """ p1.plot(idx, algorithms[0][j], color='purple', linestyle='--', linewidth=0.7, alpha=0.6)
         p2.plot(idx, algorithms[0][j+1], color='purple', linestyle='--', linewidth=0.7, alpha=0.6)
@@ -870,22 +922,164 @@ if _contours:
         p4.plot(idx, algorithms[0][j+3], color='purple', linestyle='--', linewidth=0.7, alpha=0.6) """
         
         p1.set_title("")
-        p1.set_xlabel("")
+        p1.set_xlabel(f"patt {test_patterns[j]}")
         p1.set_ylabel("")
 
         p2.set_title("")
+        p2.set_xlabel(f"patt {test_patterns[j+1]}")
         p2.set_ylabel("")
-        p2.set_xlabel("")
 
         p3.set_title("")
-        p3.set_xlabel(" ")
+        p3.set_xlabel(f"patt {test_patterns[j+2]}")
         p3.set_ylabel("")
 
         p4.set_title("")
-        p4.set_xlabel(" ")
+        p4.set_xlabel(f"patt {test_patterns[j+3]}")
         p4.set_ylabel("")
         plt.show()
+print(f"{m_alg}\n{np.mean(m_alg)}")
 
+#########################################################################################################
+_graphs=True
+if _graphs:
+    fig, (ax, ax1) = plt.subplots(1,2,figsize=(10,6))
+    distr_tap = subj_true_norm.ravel()
+    idx = np.arange(len(distr_tap))+1
+    cnts, bins, _ = ax.hist(distr_tap, bins=20, color='dimgrey', edgecolor='black', alpha=0.7, label="Mean Tap Error Distribution")
+    ax.grid(axis='y', linestyle='-', alpha=0.5)
+    ax.axvline(x=0, linestyle="--", alpha=0.6, color='black')
+    ax.set_xlabel("True Mean Error")
+    ax.set_ylabel("# Taps (All Subjects)")
+    for i in range(len(cnts)):
+        print(f"Bin {i}: Count=({cnts[i]}){(cnts[i]/np.sum(cnts))*100:.2f}%, Edge={bins[i]:.2f} - {bins[i+1]:.2f}")
+
+    # quick norm
+    mi = np.min(music_clean)
+    mx = np.max(music_clean)
+    music_clean_norm = (music_clean-mi) / (mx-mi)
+    xs = subj_ranges[:, 1]-subj_ranges[:, 0]
+    ax1.scatter(xs, np.mean(subj_true_norm, axis=1), **scatter_style, label="Tap Range vs Mean Error")
+    ax1.scatter(np.ptp(subj_abs_norm, axis=1), np.mean(subj_true_norm, axis=1), marker='x', alpha=0.6, color="dimgrey", label='Error Range vs Mean Error')
+    #ax1.scatter(music_clean_norm, np.mean(subj_true_norm, axis=1), marker='1', alpha=0.7, color='green', label="Normalized Musical Exp. v Mean Error Dir.")
+    #for i in range(n_subjects_clean):
+        #ax1.scatter(subj_ranges[i][1]-subj_ranges[i][0], np.mean(subj_true_norm[i]), **scatter_style, label="Tap Range vs Mean Error Direction")
+        #ax1.scatter(np.max(np.abs(subj_true_norm[i]))-np.min(np.abs(subj_true_norm[i])), np.mean(subj_true_norm[i]), marker='x', alpha=0.8, color="dimgrey", label='Error Range vs Mean Error Direction')
+    ax1.axhline(y=0, linestyle="--", alpha=0.6, color='black')
+    ax1.set_xlabel("Tap Velocity Range")
+    ax1.set_ylabel("Mean Error from Pattern Average")
+    ax1.grid(alpha=0.5)
+    plt.legend()
+    plt.show()
+
+
+
+    fig, (ax, ax1) = plt.subplots(2,1, figsize=(12,6))
+    
+    ptrvl = pattern_mean_norm.ravel()
+    ptrvl = ptrvl / (np.max(ptrvl)-np.min(ptrvl))
+    pmn_rvl = pmn.ravel()
+    sort = np.argsort(ptrvl)[::-1]
+    sort_pk = np.argsort(pk)[::-1]
+    idx = np.arange(len(ptrvl))+1
+    ax.plot(idx, ptrvl[sort], color='black', linestyle='-')
+    ax.plot(idx, pk[sort], color='dimgrey', linestyle="--")
+    ax.set_xlabel("Taps")
+    ax.set_ylabel("Tap Velocity")
+    #ax.plot(idx, pmn_rvl[sort], color='dimgrey', linestyle="--")
+    #ax.plot(idx, ptrvl[sort]-pmn_rvl[sort], color='black', linestyle='-')
+    rho, p_val = stats.spearmanr(ptrvl, pk)
+    print(f"P&K: {rho}({p_val})")
+
+
+    #ax1.plot(idx, ptrvl[sort_pk], color='black', linestyle='-')
+    lvls = np.array([1.0,0.8,0.6,0.4,0.2], dtype=float)
+    print(lvls)
+    ax1.plot(idx, pk[sort_pk], color='dimgrey', linestyle="--")
+    stepwise = ptrvl[sort_pk]
+    sw_idx = pk[sort_pk]
+    idxlen = [0, 0, 0, 0, 0]
+    i=0
+    for lvl in lvls:
+        idxlen[i]=len(sw_idx[sw_idx==lvl])
+        i+=1
+    running = 0
+    for lvl in range(len(lvls)):
+        running += idxlen[lvl]
+        line = np.sort((stepwise[running-idxlen[lvl]:running]))[::-1]
+        ax1.plot(np.arange(idxlen[lvl])+1+running-idxlen[lvl], line, color='black', label="Palmer&Krumhansl")
+
+    sort_bbb = np.argsort(bbb)[::-1]
+    #ax.plot(idx, bbb[sort], color='green', alpha=0.5, linestyle=":")
+    rho, p_val = stats.spearmanr(ptrvl, bbb)
+    print(f"BaudBovyBene: {rho:.4f}({p_val})")
+
+    ax1.set_xlabel("Taps")
+    ax1.set_ylabel("Tap Velocity")    
+    plt.show()
+
+    #---------------------
+    fig,(ax,ax1) = plt.subplots(2,1, figsize=(12,6))
+
+    ax.plot(idx, ptrvl[sort], color='black', linestyle='-') # tap line
+    nd=note_density.ravel()
+    ax.plot(idx, nd[sort], **dashed_line_style)
+    nd_sort = np.argsort(nd)[::-1]
+    ax1.plot(idx, ptrvl[nd_sort], color='black', linestyle='-')
+    ax1.plot(idx, nd[nd_sort], **dashed_line_style, label="Stepwise Onset Density")
+    rho, p_val = stats.pearsonr(ptrvl, nd)
+    print(f"Basic Note Density: {rho:.4f}({p_val})")
+    ax1.set_xlabel("Taps")
+    ax1.set_ylabel("Tap Velocity")
+    plt.legend()  
+    plt.show()
+
+    fig,(ax,ax1) = plt.subplots(2,1, figsize=(12,6))
+
+    ax.plot(idx, ptrvl[sort], color='black', linestyle='-') # tap line
+    ndw=note_density_weighted.ravel()
+    ax.plot(idx, ndw[sort], **dashed_line_style)
+    ndw_sort = np.argsort(ndw)[::-1]
+    ax1.plot(idx, ptrvl[ndw_sort], color='black', linestyle='-')
+    ax1.plot(idx, ndw[ndw_sort], **dashed_line_style, label="Weighted Onset Density")
+    rho, p_val = stats.pearsonr(ptrvl, ndw)
+    print(f"Weighted Note Density: {rho:.4f}({p_val})")
+    ax1.set_xlabel("Taps")
+    ax1.set_ylabel("Tap Velocity")
+    plt.legend()  
+    plt.show()
+
+    fig,(ax,ax1) = plt.subplots(2,1, figsize=(12,6))
+
+    ax.plot(idx, ptrvl[sort], color='black', linestyle='-') # tap line
+    alg=algorithms[0].ravel()
+    ax.plot(idx, alg[sort], **dashed_line_style)
+    alg_sort = np.argsort(alg)[::-1]
+    ax1.plot(idx, ptrvl[alg_sort], color='black', linestyle='-')
+    ax1.plot(idx, alg[alg_sort], **dashed_line_style, label="Cont. Density Sync Meter Alg")
+    rho, p_val = stats.pearsonr(ptrvl, alg)
+    #print(f"{rho:.4f}({p_val})")
+    ax1.set_xlabel("Taps")
+    ax1.set_ylabel("Tap Velocity")
+    plt.legend()  
+    plt.show()
+
+    for i in range(6):
+        rho, p_val = stats.pearsonr(ptrvl, algorithms[i].ravel())
+        print(f"\t{algorithm_names[i]}: {rho:.4f}({p_val})")
+    """ lvls=np.array([3/3, 2/3, 1/3], dtype=float)
+    ax1.plot(idx, bbb[sort_bbb], color='green', alpha=0.5, linestyle="--")    
+    sw_idx = bbb[sort_bbb]  
+    stepwise2 = ptrvl[sort_bbb]
+    idxlen = [0, 0, 0]
+    i=0
+    for lvl in lvls:
+        idxlen[i]=len(sw_idx[sw_idx==lvl])
+        i+=1
+    running2 = 0
+    for lvl in range(len(lvls)):
+        running2 += idxlen[lvl]
+        line2 = np.sort((stepwise2[running2-idxlen[lvl]:running2]))[::-1]
+        ax1.plot(np.arange(idxlen[lvl])+1+running2-idxlen[lvl], line2, color='green') """
 ## Normalization By Individual Behavior ##
 _norm = False
 if _norm:
