@@ -5,12 +5,20 @@ import os
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import scipy.stats as stats
+from statsmodels.api import OLS
 from statsmodels.stats.multicomp import pairwise_tukeyhsd
 from itertools import chain
 import seaborn 
 import pickle
 import test_functions as tf
 import sklearn.metrics as sk
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.linear_model import LinearRegression
+from sklearn.neighbors import KNeighborsRegressor
+from sklearn.svm import LinearSVR
+from sklearn.multioutput import MultiOutputRegressor
+from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import RepeatedKFold
 import warnings
 import neuralnetwork as NN
 with warnings.catch_warnings():
@@ -27,8 +35,8 @@ _control = True # must be true for some reason not yet found in the plot block
 _subject = False
 _pattern = False
 _position = False
-_tapcalibration = False #necessary for anovas
-_anova = False
+_tapcalibration = True #necessary for anovas
+_anova = True
 
 ######################################################################################################
 ########################## Variable declaration and subject data loading #############################
@@ -523,7 +531,7 @@ scatter_style={
 dashed_line_style={
     'color':'dimgrey',
     'linestyle':'--',
-    'alpha':0.6,
+    'alpha':0.8,
     'linewidth':0.8
 }
 solid_line_style={
@@ -808,11 +816,21 @@ if _anova:
         tky_df = pd.DataFrame(data=tky._results_table.data[1:], columns=tky._results_table.data[0])
         print(f"Tap Consistency Tukey's HSD Results: \n{tky_df}\n")
 
-        # Split the combined array into quarters
-        split_points = [int(len(all_taps) * 0.25),
-                        int(len(all_taps) * 0.5),
-                        int(len(all_taps) * 0.75)]    
-        all_quarters = np.split(all_taps, split_points)
+
+        # Split into quarters
+        all_quarters = np.array([[0.0 for x in range(24)] for y in range(4)], dtype=float)
+        all_taps2 = np.array([np.mean(_tap_by_subject[:,0], axis=0), np.mean(_tap_by_subject[:,1], axis=0), np.mean(_tap_by_subject[:,2], axis=0)], dtype=float)
+        """ for i in range(3):    
+                all_quarters[0] += all_taps2[i][:8]
+                all_quarters[1] += all_taps2[i][8:16]
+                all_quarters[2] += all_taps2[i][16:24]
+                all_quarters[3] += all_taps2[i][24:32] """
+        quarter_size = all_taps2.shape[1] // 4
+        for i in range(4):
+            start_col = i * quarter_size
+            end_col = (i + 1) * quarter_size
+            all_quarters[i] = all_taps2[:, start_col:end_col].ravel()
+
 
         # Create labels for each quarter
         labels = ['Q1'] * len(all_quarters[0]) + ['Q2'] * len(all_quarters[1]) + ['Q3'] * len(all_quarters[2]) + ['Q4'] * len(all_quarters[3])
@@ -825,8 +843,28 @@ if _anova:
         print(f"Tap Consistency F-Stat: {anova_quarters.statistic:.4f} P-Value: ({anova_quarters.pvalue:.4f})")
         print(tky2_df)
 
+
+        all_quarters=np.array(all_quarters, dtype=float)
+        fig,(ax,ax1) = plt.subplots(1,2, figsize=(11,8))
+        subjidx = np.arange(4)+1
+        subjidx=np.array([0.6,0.8,1.0,1.2], dtype=float)
+        ax.grid(color='lightgray', linestyle='-', linewidth=0.6, alpha=0.7, axis='y')
+        width = 0.20
+        bp = ax.boxplot(all_quarters.T, positions=subjidx, widths=width, patch_artist=True, showfliers=True, boxprops=dict(facecolor='dimgrey', alpha=0.5),flierprops=dict(marker='x',markeredgecolor='dimgrey', markersize='5'))
+        ax.set_ylim(-0.5,0.5)
+        ax.set_xlim(0.4,1.5)
+        ax.set_xticklabels(['Q1','Q2','Q3','Q4'])
+
+        subjidx=[0.7,1.0,1.3]
+        bp2 = ax1.boxplot(all_taps2.T, positions=subjidx, widths=width, patch_artist=True, showfliers=True, boxprops=dict(facecolor='dimgrey', alpha=0.5),flierprops=dict(marker='x',markeredgecolor='dimgrey', markersize='5'))
+        ax1.set_ylim(-0.5,0.5)
+        ax1.set_xlim(0.5,1.6)
+        ax1.set_xticklabels(['Low','Mid','High'])
+        ax1.grid(color='lightgray', linestyle='-', linewidth=0.6, alpha=0.7, axis='y')
+        plt.show()
+    
     # Subjects (if necessary)
-    _subj_stats = True
+    _subj_stats = False
     if _subj_stats:
         # subj_true
         print(subj_true.shape)
@@ -864,9 +902,11 @@ if _anova:
 # - Attempt scaling subjects a. overall and b. by pattern inidividually (normalize by individual or by tap tap results)
 
 ## Plot Pattern Means Raw/Norm. Subject Means Raw/Norm, Alg. ##
-true_sync_salience = np.array([5,1,2,1, 3,1,2,1, 4,1,2,1, 3,1,2,1], dtype=float)
-true_sync_salience2 = np.array([3,1,2,1, 3,1,2,1, 3,1,2,1, 3,1,2,1], dtype=float)
-true_sync_salience /= 5 
+true_sync_salience = np.array([5,1,2,1, 3,1,2,1, 4,1,2,1, 3,1,2,1], dtype=float) # P & K
+true_sync_salience = np.array([4,0,1,0, 2,0,1,0, 3,0,1,0, 2,0,1,0], dtype=float) # P & K
+
+true_sync_salience2 = np.array([3,1,2,1, 3,1,2,1, 3,1,2,1, 3,1,2,1], dtype=float) # BBB
+true_sync_salience /= 4
 true_sync_salience2 /= 3
 #true_sync_salience2 *= np.max(pattern_mean_norm)
 pmn=pattern_mean_norm.copy()
@@ -937,8 +977,8 @@ if _contours:
         p4.set_xlabel(f"patt {test_patterns[j+3]}")
         p4.set_ylabel("")
         plt.show()
-print(f"{m_alg}\n{np.mean(m_alg)}")
-
+## Print Accuracy by Step ##
+#print(f"{m_alg}\n{np.mean(m_alg)}")
 #########################################################################################################
 _graphs=True
 if _graphs:
@@ -972,7 +1012,8 @@ if _graphs:
     plt.show()
 
 
-
+    ###########################################################################################
+    ## Avg Tap. vs GTTM / P&K / BBB Metrical Weights ##
     fig, (ax, ax1) = plt.subplots(2,1, figsize=(12,6))
     
     ptrvl = pattern_mean_norm.ravel()
@@ -981,20 +1022,18 @@ if _graphs:
     sort = np.argsort(ptrvl)[::-1]
     sort_pk = np.argsort(pk)[::-1]
     idx = np.arange(len(ptrvl))+1
-    ax.plot(idx, ptrvl[sort], color='black', linestyle='-')
-    ax.plot(idx, pk[sort], color='dimgrey', linestyle="--")
-    ax.set_xlabel("Taps")
-    ax.set_ylabel("Tap Velocity")
-    #ax.plot(idx, pmn_rvl[sort], color='dimgrey', linestyle="--")
-    #ax.plot(idx, ptrvl[sort]-pmn_rvl[sort], color='black', linestyle='-')
+    ax.plot(idx, ptrvl[sort], color='black', linestyle='-', label="Normalized Tap Velocity")
+    ax.plot(idx, pk[sort], **dashed_line_style, label="Palmer&Krumhansl")
+    ax.set_xlabel("")
+    ax.set_ylabel("")
     rho, p_val = stats.spearmanr(ptrvl, pk)
     print(f"P&K: {rho}({p_val})")
+    #txt = r'$\rho$:'+str(rho)[:4]+'(pval:'+str(p_val)[:4]+str(p_val[:-4])+')'
+    txt = r'$\rho = {:.3f},\ p\_val = {:.3e}$'.format(rho, p_val)
+    ax.text(np.max(idx)-(np.max(idx)*0.25), 0.8, txt, size='medium')
 
-
-    #ax1.plot(idx, ptrvl[sort_pk], color='black', linestyle='-')
-    lvls = np.array([1.0,0.8,0.6,0.4,0.2], dtype=float)
-    print(lvls)
-    ax1.plot(idx, pk[sort_pk], color='dimgrey', linestyle="--")
+    lvls = np.array([1.0,0.75,0.5,0.25,0.0], dtype=float)
+    ax1.plot(idx, pk[sort_pk], **dashed_line_style)
     stepwise = ptrvl[sort_pk]
     sw_idx = pk[sort_pk]
     idxlen = [0, 0, 0, 0, 0]
@@ -1006,32 +1045,42 @@ if _graphs:
     for lvl in range(len(lvls)):
         running += idxlen[lvl]
         line = np.sort((stepwise[running-idxlen[lvl]:running]))[::-1]
-        ax1.plot(np.arange(idxlen[lvl])+1+running-idxlen[lvl], line, color='black', label="Palmer&Krumhansl")
+        ax1.plot(np.arange(idxlen[lvl])+1+running-idxlen[lvl], line, color='black')
 
     sort_bbb = np.argsort(bbb)[::-1]
-    #ax.plot(idx, bbb[sort], color='green', alpha=0.5, linestyle=":")
     rho, p_val = stats.spearmanr(ptrvl, bbb)
     print(f"BaudBovyBene: {rho:.4f}({p_val})")
 
-    ax1.set_xlabel("Taps")
-    ax1.set_ylabel("Tap Velocity")    
+    ax1.set_xlabel("Steps")
+    ax1.set_ylabel("")
+
+    ax.set_title("Pattern Mean Normalized Tap Velocity vs \nPalmer & Krumhansl (1990) Metrical Value", **title_style)
+    fig.legend()    
     plt.show()
 
-    #---------------------
+    ###########################################################################################
+    ## Simple Onset Density Count vs Avg Tap ##
     fig,(ax,ax1) = plt.subplots(2,1, figsize=(12,6))
 
     ax.plot(idx, ptrvl[sort], color='black', linestyle='-') # tap line
     nd=note_density.ravel()
     ax.plot(idx, nd[sort], **dashed_line_style)
     nd_sort = np.argsort(nd)[::-1]
-    ax1.plot(idx, ptrvl[nd_sort], color='black', linestyle='-')
+    ax1.plot(idx, ptrvl[nd_sort], color='black', linestyle='-', label='Normalized Tap Velocity')
     ax1.plot(idx, nd[nd_sort], **dashed_line_style, label="Stepwise Onset Density")
     rho, p_val = stats.pearsonr(ptrvl, nd)
     print(f"Basic Note Density: {rho:.4f}({p_val})")
-    ax1.set_xlabel("Taps")
-    ax1.set_ylabel("Tap Velocity")
-    plt.legend()  
+    txt = r'$\rho = {:.3f},\ p\_val = {:.3e}$'.format(rho, p_val)
+    ax.text(np.max(idx)-(np.max(idx)*0.25)+8, 0.95, txt, size='small')
+    ax1.set_xlabel("Steps")
+    ax1.set_ylabel("")
+
+    ax.set_title("Pattern Mean Normalized Tap Velocity vs \nOnset Density by Channel", **title_style)
+    fig.legend()  
     plt.show()
+
+    ###########################################################################################
+    ## Witek 3-channel Weighting vs vs Avg Tap ##
 
     fig,(ax,ax1) = plt.subplots(2,1, figsize=(12,6))
 
@@ -1039,47 +1088,231 @@ if _graphs:
     ndw=note_density_weighted.ravel()
     ax.plot(idx, ndw[sort], **dashed_line_style)
     ndw_sort = np.argsort(ndw)[::-1]
-    ax1.plot(idx, ptrvl[ndw_sort], color='black', linestyle='-')
-    ax1.plot(idx, ndw[ndw_sort], **dashed_line_style, label="Weighted Onset Density")
+    ax1.plot(idx, ptrvl[ndw_sort], color='black', linestyle='-', label='Normalized Tap Velocity')
+    ax1.plot(idx, ndw[ndw_sort], **dashed_line_style, label="Witek Weighted Onset Density")
     rho, p_val = stats.pearsonr(ptrvl, ndw)
     print(f"Weighted Note Density: {rho:.4f}({p_val})")
-    ax1.set_xlabel("Taps")
-    ax1.set_ylabel("Tap Velocity")
-    plt.legend()  
+    txt = r'$\rho = {:.3f},\ p\_val = {:.3e}$'.format(rho, p_val)
+    ax.text(np.max(idx)-(np.max(idx)*0.25), 0.8, txt, size='small')
+    ax1.set_xlabel("Steps")
+    ax1.set_ylabel("")
+    plt.suptitle("Pattern Mean Normalized Tap Velocity vs \nWitek et al.(2018) Weighted Onset Density", **title_style)
+    fig.legend()  
     plt.show()
 
+    ###########################################################################################
+    ## Alg vs Avg Taps ##
     fig,(ax,ax1) = plt.subplots(2,1, figsize=(12,6))
+    _sbj = subjects_sorted.copy()
 
-    ax.plot(idx, ptrvl[sort], color='black', linestyle='-') # tap line
-    alg=algorithms[0].ravel()
-    ax.plot(idx, alg[sort], **dashed_line_style)
+    for i in range(n_subjects_clean):
+        for j in range(len(subjects_sorted[i])):
+            subj_sort_norm = subjects_sorted[i][j].copy()  # Create a copy to avoid modifying the original array
+            min = np.min(subj_sort_norm)
+            max = np.max(subj_sort_norm)
+            subj_sort_norm = (subj_sort_norm - min) / (max - min)
+            _sbj[i][j] = subj_sort_norm
+    
+    ptrvlbox = _sbj.reshape((n_subjects_clean, -1))
+    _ptrvlbox = ptrvlbox[:,sort]
+    ax.boxplot(_ptrvlbox)
+    ax.plot(idx, ptrvl[sort], color='green', linestyle='-') # tap line
+
+    alg=algorithms[2].ravel()
+    #ax.plot(idx, alg[sort], **dashed_line_style)
     alg_sort = np.argsort(alg)[::-1]
-    ax1.plot(idx, ptrvl[alg_sort], color='black', linestyle='-')
+    ax1.plot(idx, ptrvl[alg_sort], color='black', linestyle='-', label='Normalized Tap Velocity')
     ax1.plot(idx, alg[alg_sort], **dashed_line_style, label="Cont. Density Sync Meter Alg")
     rho, p_val = stats.pearsonr(ptrvl, alg)
+    txt = r'$\rho = {:.3f},\ p\_val = {:.3e}$'.format(rho, p_val)
+    ax.text(np.max(idx)-(np.max(idx)*0.25), 0.8, txt, size='small')
     #print(f"{rho:.4f}({p_val})")
-    ax1.set_xlabel("Taps")
-    ax1.set_ylabel("Tap Velocity")
-    plt.legend()  
+    ax1.set_xlabel("Steps")
+    ax1.set_ylabel("")
+    ax.set_title("Pattern Mean Normalized Tap Velocity vs Best Performing Algorithm", **title_style)
+    fig.legend()  
     plt.show()
 
     for i in range(6):
         rho, p_val = stats.pearsonr(ptrvl, algorithms[i].ravel())
         print(f"\t{algorithm_names[i]}: {rho:.4f}({p_val})")
-    """ lvls=np.array([3/3, 2/3, 1/3], dtype=float)
-    ax1.plot(idx, bbb[sort_bbb], color='green', alpha=0.5, linestyle="--")    
-    sw_idx = bbb[sort_bbb]  
-    stepwise2 = ptrvl[sort_bbb]
-    idxlen = [0, 0, 0]
-    i=0
-    for lvl in lvls:
-        idxlen[i]=len(sw_idx[sw_idx==lvl])
-        i+=1
-    running2 = 0
-    for lvl in range(len(lvls)):
-        running2 += idxlen[lvl]
-        line2 = np.sort((stepwise2[running2-idxlen[lvl]:running2]))[::-1]
-        ax1.plot(np.arange(idxlen[lvl])+1+running2-idxlen[lvl], line2, color='green') """
+
+    ##################################################################################################
+    ####### All Taps (not just means) #########
+    fig,(ax,ax1) = plt.subplots(2,1, figsize=(12,6))
+    megataps = np.array([], dtype=float)
+    for i in range(n_subjects_clean):
+        megataps = np.append(megataps, subjects_sorted[i].ravel())
+
+    _mt = megataps.ravel()
+    nz_mt = np.where(_mt>0.05)
+    mt = _mt[nz_mt]
+    mt_idx = np.arange(len(mt))+1
+    mt_sort = np.argsort(mt)[::-1]
+    mt_pk = np.tile(pk, n_subjects_clean)
+    mt_pk = mt_pk[nz_mt]
+    mt_alg = np.tile(alg, n_subjects_clean)
+    mt_alg = mt_alg[nz_mt]
+    ax.plot(mt_idx, mt_alg[mt_sort], color='dimgrey', linestyle='--', alpha=0.4)
+    ax.plot(mt_idx, mt[mt_sort], color='black', linestyle='-')
+
+    rho, p_val = stats.pearsonr(mt, mt_alg)
+    print(f"All taps: {rho:.4f}({p_val})")
+    txt = r'$\rho = {:.3f},\ p\_val = {:.3e}$'.format(rho, p_val)
+    ax.text(np.max(idx)-(np.max(idx)*0.25), 0.8, txt, size='small')
+    rho, p_val = stats.pearsonr(mt, mt_pk)
+    print(f"All taps (P&K): {rho:.4f}({p_val})")
+
+    mt_sort_alg = np.argsort(mt_alg)[::-1]
+    mt_sort_pk = np.argsort(mt_pk)[::-1]
+    ax1.plot(mt_idx, mt_alg[mt_sort_alg], color='dimgrey', linestyle='--', alpha=0.4)
+    ax1.plot(mt_idx, mt[mt_sort_alg], color='black', linestyle='-', alpha=0.6)
+    plt.show()
+    #########################################################################################################
+
+
+#############################################################################################################
+######################## Correlation: Tap Force and Models ################################################
+force_predictions_f = open(pickle_dir+"force_predictions.pkl","rb")
+force_predictions=pickle.load(force_predictions_f)
+force_predictions_f.close()
+force_predictions_names = ['OnsDen', 'OnsDen_fW', 'Sync', 'Sync_fW', 'WitekSync', 'WitekSync_fW', 'MtrStr_fBand', 'MtrStr_fBand_fW'] # meter is done by freq. channel
+
+ptrvl = pattern_mean_norm.ravel()
+idx = np.arange(len(ptrvl))+1
+ptrvl = ptrvl / (np.max(ptrvl)-np.min(ptrvl))
+sort = np.argsort(ptrvl)[::-1]
+idx = np.arange(len(ptrvl))+1
+
+
+n_force_pred = 8
+for i in range(n_force_pred):
+    rho, p_val = stats.pearsonr(ptrvl[sort], force_predictions[i][sort])
+    txt = r'rho = {:.3f}, p_val = {:.3e}'.format(rho, p_val)
+    print(f"{txt} ---- {force_predictions_names[i]}")
+    print(f"MAE: {np.mean(np.abs(ptrvl-force_predictions[i])):.3f}")
+    print(f"MSE: {np.mean(pow(ptrvl-force_predictions[i], 2)):.3f}")
+    print(f"RMSE: {np.sqrt(np.mean(pow(ptrvl-force_predictions[i], 2))):.3f}")
+
+    # R2
+    model = OLS(ptrvl, force_predictions[i]).fit()
+    k = len(model.params) # num coefficients
+    n = len(force_predictions[i])  # Number of data points
+    sst = np.sum((ptrvl-np.mean(ptrvl))**2)
+    sse = np.sum((ptrvl - force_predictions[i])**2)
+    r2 = 1-(sse/sst)
+    adj_r2 = (1 - (1-r2)*(n-1)) / (n-k-1)
+
+    print(f"R^2: {r2:.3f}")
+    print(f"Adj. R^2: {adj_r2:.3f}")
+
+    # REGRESSIONS
+    tru = ptrvl.reshape(-1,1)
+    fpi = force_predictions[i].reshape(-1,1)    
+    linear_model = LinearRegression()
+    linear_model.fit(tru, fpi)
+
+    kNN_model = KNeighborsRegressor()
+    kNN_model.fit(tru, fpi)
+
+    DT_model = DecisionTreeRegressor()
+    DT_model.fit(tru, fpi)
+
+    svr_model = LinearSVR()
+    svr_wrap_model = MultiOutputRegressor(svr_model)
+    svr_wrap_model.fit(tru, fpi)
+
+    DT_model = DecisionTreeRegressor()
+
+    DT_model.fit(tru, fpi)
+    #   Define procedure
+    cross_validation = RepeatedKFold(n_splits=10, n_repeats=5, random_state=1) # 10-fol
+    #   Evaluate
+    np.seterr("ignore")
+    n_scores_DT = np.abs(cross_val_score(DT_model, tru, fpi, scoring='neg_mean_absolute_error', cv=cross_validation,n_jobs=-1))
+    #n_scores_linear = np.abs(cross_val_score(linear_model, tru, fpi, scoring='neg_mean_absolute_error', cv=cross_validation,n_jobs=-1))
+    n_scores_kNN = np.abs(cross_val_score(kNN_model, tru, fpi, scoring='neg_mean_absolute_error', cv=cross_validation,n_jobs=-1))
+    n_scores_svr = np.abs(cross_val_score(svr_wrap_model, tru, fpi, scoring='neg_mean_absolute_error', cv=cross_validation,n_jobs=-1))
+    print("Mean Abs Error[DT]: %.3f (%.3f)" % (np.mean(n_scores_DT), np.std(n_scores_DT)))
+    #print("Mean Abs Error[Linear]: %.3f (%.3f)" % (np.mean(n_scores_linear), np.std(n_scores_linear)))
+    print("Mean Abs Error[kNN]: %.3f (%.3f)" % (np.mean(n_scores_kNN), np.std(n_scores_kNN)))
+    print("Mean Abs Error[SVR]: %.3f (%.3f)" % (np.mean(n_scores_svr), np.std(n_scores_svr)))
+
+    
+    fig,(ax,ax1) = plt.subplots(2,1, figsize=(12,6))
+
+    ax.plot(idx, ptrvl[sort], color='black', linestyle='-') # tap line
+    ax.plot(idx, force_predictions[i][sort], **dashed_line_style)
+
+    fp_sort = np.argsort(force_predictions[i])[::-1]
+    ax1.plot(idx, ptrvl[fp_sort], color='black', linestyle='-', label='Normalized Tap Velocity')
+    ax1.plot(idx, force_predictions[i][fp_sort], **dashed_line_style, label="Stepwise Onset Density")
+    ax.text(np.max(idx)-(np.max(idx)*0.25)+8, 0.95, txt, size='small')
+    ax1.set_xlabel("Steps")
+    ax1.set_ylabel("")
+
+    ax.set_title(f"{force_predictions_names[i]}", **title_style)
+    fig.legend()  
+    plt.show()
+
+   
+
+# Calculate the likelihood (L) - For illustration, assuming normally distributed errors
+    residuals = ptrvl - force_predictions[i]
+    likelihood = np.prod(stats.norm.pdf(residuals))
+
+    # Calculate AIC
+    AIC = 2 * k - 2 * np.log(likelihood)
+    
+    # Calculate BIC
+    BIC = n * np.mean(pow(ptrvl-force_predictions[i], 2)) + k * np.log(n)
+
+    print(f"AIC: {AIC:.2f} - k={k}")
+    print(f"BIC: {BIC:.2f} - k={k}")
+    print()
+
+rho, p_val = stats.pearsonr(ptrvl[sort], pk[sort])
+txt = r'rho = {:.3f}, p_val = {:.3e}'.format(rho, p_val)
+print(f"{txt} ---- Simple P&K / GTTM")
+
+alg=algorithms[2].ravel()
+model = OLS(ptrvl, alg).fit()
+# Number of model parameters (k) is the number of coefficients (including intercept)
+k = len(model.params)
+n = len(alg)  # Number of data points
+residuals = ptrvl - alg
+likelihood = np.prod(stats.norm.pdf(residuals))
+
+BIC = n * np.mean(pow(ptrvl-alg, 2)) + k * np.log(n)
+
+# Calculate AIC
+AIC = 2 * k - 2 * np.log(likelihood)
+
+rho, p_val = stats.pearsonr(ptrvl, alg)
+txt = r'rho = {:.3f}, p_val = {:.3e}'.format(rho, p_val)
+print(f"{txt} ---- C-DSM")
+print(f"[C-DSM] \nAIC: {AIC:.2f} - k={k}")
+print(f"BIC: {BIC:.2f} - k={k}")
+    #print(f"{force_predictions_names[i]}: {force_predictions[i][:16]}")
+DT_model = DecisionTreeRegressor()
+tru = ptrvl.reshape(-1,1)
+fpi = alg.reshape(-1,1)
+DT_model.fit(tru, fpi)
+#   Define procedure
+cross_validation = RepeatedKFold(n_splits=10, n_repeats=5, random_state=1) # 10-fol
+#   Evaluate
+np.seterr("ignore")
+n_scores_DT = np.abs(cross_val_score(DT_model, tru, fpi, scoring='neg_mean_absolute_error', cv=cross_validation,n_jobs=-1))
+print("Mean Abs Error[DT]: %.3f (%.3f)" % (np.mean(n_scores_DT), np.std(n_scores_DT)))
+
+
+
+
+
+
+
+#############################################################################################################
+#############################################################################################################
 ## Normalization By Individual Behavior ##
 _norm = False
 if _norm:
@@ -1142,7 +1375,7 @@ if _norm:
             q.set_edgecolor('darkgrey')
         for q in violin2['cmaxes']:
             q.set_color('black')
-        for q in violin2['cmins']:
+        for q in violin2['cmins']: 
             q.set_color('black') """
         b.append(_distro)
         b2.append(_distro_norm)

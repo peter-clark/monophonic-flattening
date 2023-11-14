@@ -30,24 +30,26 @@ if _savepatterns:
         with open(filename, "w") as f:
             f.write(str(all_pattlists[index]))
 
-## Get polyphonic descriptors for patterns
-d = desc.lopl2descriptors(all_pattlists)
+_descriptors = False
+if _descriptors:
+    ## Get polyphonic descriptors for patterns
+    d = desc.lopl2descriptors(all_pattlists)
 
-## Slice for 5 significant descriptors
-_d = np.asarray([np.asarray([de[2],de[3],de[7],de[8],de[13]]) for de in d])
+    ## Slice for 5 significant descriptors
+    _d = np.asarray([np.asarray([de[2],de[3],de[7],de[8],de[13]]) for de in d])
 
-print("Calculated Polyphonic Descriptors \n")
+    print("Calculated Polyphonic Descriptors \n")
 
 
-## Get coordinates from embedding done on poly-descriptors
-#       [MDS, PCA, TSNE, UMAP]
-embeddings_dir = dir + "/embeddings/"
-embeddings = []
-embeddings_names = ["MDS","PCA","TSNE","UMAP"]
+    ## Get coordinates from embedding done on poly-descriptors
+    #       [MDS, PCA, TSNE, UMAP]
+    embeddings_dir = dir + "/embeddings/"
+    embeddings = []
+    embeddings_names = ["MDS","PCA","TSNE","UMAP"]
 
-mds_pos = fun.d_mtx_2_mds(d)
-embeddings.append(mds_pos)
-print("Got embedding coordinates\n")
+    mds_pos = fun.d_mtx_2_mds(d)
+    embeddings.append(mds_pos)
+    print("Got embedding coordinates\n")
 
 #   Save if desired
 if _saveembeddings:
@@ -96,6 +98,11 @@ notes = np.array([[0, 0, 0, 0] for y in range(2)], dtype=float) # notes / rests
 test_patterns = [894, 423, 1367, 249, 939, 427, 590, 143, 912, 580, 1043, 673, 1359, 736, 678, 1355]
 all_nc = np.array([], dtype=float)
 all_nc3 = np.array([], dtype=float)
+
+# For comparing literature predictions and results
+num_predictions = 8
+predictions = np.array([[0.0 for x in range(256)] for y in range(num_predictions)], dtype=float)
+
 for pattern in range(len(all_pattlists)):
     #print(all_names[pattern])
     p = get_LMH(all_pattlists[pattern])
@@ -130,8 +137,11 @@ for pattern in range(len(all_pattlists)):
         if np.sum(note_cnt3[i]>0):
             sumsal += (1 / ((np.sum(note_cnt3[i])) / (np.sum(note_cnt))))
     for i in range(3):
-        if np.sum(note_cnt3[i]>0):
-            note_cnt3[i] *= ((1 / ( (np.sum(note_cnt3[i])) / (np.sum(note_cnt)) ) ) / float(sumsal))
+        # Relative Onset Density
+        #if np.sum(note_cnt3[i]>0):
+        #    note_cnt3[i] *= ((1 / ( (np.sum(note_cnt3[i])) / (np.sum(note_cnt)) ) ) / float(sumsal))
+        
+        # Witek scaling
         if i==0:
             note_cnt3[i] *= 3 # low freq bias
         elif i==1:
@@ -142,7 +152,7 @@ for pattern in range(len(all_pattlists)):
         all_nc = np.append(all_nc, note_cnt, axis=0)
         ac3 /= np.max(ac3)
         all_nc3 = np.append(all_nc3, ac3)
-    print(f"{pattern}:{note_cnt}\n{note_cnt3}")             
+    #print(f"{pattern}:{note_cnt}\n{note_cnt3}")             
     flat = flatten.flat_from_patt(all_pattlists[pattern])
     #print(len(flat))
     #print(len(flat[1]))
@@ -153,6 +163,34 @@ for pattern in range(len(all_pattlists)):
     all_flat[pattern] = flat
     for i in range(len(flat_by_alg)):
         flat_by_alg[i][pattern] = flat[i]
+    
+    # Get other predictions
+    for patt in range(len(test_patterns)):
+        if pattern == test_patterns[patt]:
+            # Stepwise Onset Density
+            predictions[0][patt*16:(patt+1)*16] = flatten.onset_density(all_pattlists[pattern])
+
+            # Onset Density fBand Weighted
+            predictions[1][patt*16:(patt+1)*16] = flatten.witek_scaling(all_pattlists[pattern])
+
+            # Simple Syncopation
+            predictions[2][patt*16:(patt+1)*16] = flatten.syncopation(all_pattlists[pattern], type=1)
+
+            # Simple Syncopation fBand Weighted
+            predictions[3][patt*16:(patt+1)*16] = flatten.syncopation(all_pattlists[pattern], type=2)
+
+            # Witek Syncopation
+            predictions[4][patt*16:(patt+1)*16] = flatten.witek_syncopation(all_pattlists[pattern], type=1)
+
+            # Witek Syncopation fBand Weighted
+            predictions[5][patt*16:(patt+1)*16] = flatten.witek_syncopation(all_pattlists[pattern], type=2)
+
+            # Metrical Strength
+            predictions[6][patt*16:(patt+1)*16] = flatten.metrical_strength(all_pattlists[pattern], type=1)
+
+            # Metrical Strength fBand Weighted
+            predictions[7][patt*16:(patt+1)*16] = flatten.metrical_strength(all_pattlists[pattern], type=2)
+            print(f"({patt}/16)")
 
 #   Save if desired
     if _saveflattened:
@@ -166,6 +204,10 @@ for pattern in range(len(all_pattlists)):
                     g.write(str(flat_by_alg[i][pattern])+"\n") if i!=len(all_pattlists)-1 else g.write(str(flat_by_alg[i][pattern]))
 file = open(os.getcwd()+"/flat/flatbyalg.pkl", 'wb')
 pickle.dump(flat_by_alg, file, -1)
+file.close()
+
+file = open(os.getcwd()+"/data/force_predictions.pkl", 'wb')
+pickle.dump(predictions, file, -1)
 file.close()
 
 file = open(os.getcwd()+"/data/overall_note_density.pkl", 'wb')
