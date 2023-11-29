@@ -32,7 +32,8 @@ results_file = os.getcwd()+"/results/taptest.csv"
 
 ## Empty array for results of save
 save_line = [0.0 for x in range(86)]
-tap_file = os.getcwd()+"/results/tapexplore.csv"
+# changed since done with testing
+tap_file = os.getcwd()+"/results/tapexplore2.csv"
 
 ## OSC IP / PORT
 IP = '127.0.0.1'
@@ -106,11 +107,12 @@ test_patterns = [
     1043, 673, 1359, 736,
     678, 1355
     ]
-np.random.shuffle(test_patterns)
+# no shuffle for recording
+""" np.random.shuffle(test_patterns)
 for i in range(len(test_patterns)-1):
     if test_patterns[i]==test_patterns[i+1]:
         np.random.shuffle(test_patterns)
-        break
+        break """
 print(test_patterns)
 
 next_patt = test_patterns[0]

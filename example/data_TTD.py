@@ -36,7 +36,7 @@ _subject = False
 _pattern = False
 _position = False
 _tapcalibration = True #necessary for anovas
-_anova = True
+_anova = False
 
 ######################################################################################################
 ########################## Variable declaration and subject data loading #############################
@@ -284,13 +284,13 @@ if _control:
     ax1.axvline(x=0.0, linewidth=0.8, linestyle="--", color='grey', alpha=0.8)
     rect = mpl.patches.Rectangle((p2[0], p1[1]), p1[0] - p2[0], p2[1] - p1[1], linewidth=0.8, edgecolor='green', facecolor='none', linestyle='--')
     ax1.add_patch(rect)
-    ax1.scatter(precision_means[:,0], precision_means[:,1], marker='.', color='darkgreen', label="Intra-Pattern Precision")
+    ax1.scatter(precision_means[:,0], precision_means[:,1], marker='.', color='dimgrey', label="Intra-Pattern Precision")
     for n in range(n_subjects): # Subject # Labels
         ax1.text(precision_means[n,0], precision_means[n,1], str(n+1), size='x-small')
     ax1.set(xlim=[-0.5,0.5], ylim=[-0.5,0.5], xticks=np.arange(-0.5,0.5,0.1), yticks=np.arange(-0.5,0.5,0.1))
     ax1.grid(color='lightgrey', linewidth=0.3, alpha=0.4)
     ax1.set_title("Precision (Attempt 1 v 2)", fontsize=14, fontfamily='serif',fontweight='book')
-    ax1.set_ylabel("Pattern 678", fontsize=12, fontfamily='sans-serif')
+    ax1.set_xlabel("Pattern 678", fontsize=12, fontfamily='sans-serif')
     ax1.set_ylabel("Pattern 1355", fontsize=12, fontfamily='sans-serif')
 
     ## Accuracy by Control Pattern ##
@@ -459,6 +459,7 @@ pattern_var = np.var(patterns_sorted[:,:,:], axis=1)
 patt_abs = np.array([[0.0 for x in range(n_subjects_clean)] for y in range(16)], dtype=float)
 patt_true = np.array([[0.0 for x in range(n_subjects_clean)] for y in range(16)], dtype=float)
 
+subj_sort_norm = subjects_sorted.copy()
 subj_true = np.array([[0.0 for x in range(16)] for y in range(n_subjects_clean)], dtype=float)
 subj_abs = np.array([[0.0 for x in range(16)] for y in range(n_subjects_clean)], dtype=float)
 
@@ -471,16 +472,33 @@ step_subj_true = np.array([[0.0 for x in range(n_subjects_clean)] for y in range
 ## Normalize Subjects and Patterns ##
 subj_ranges = np.array([[0.0, 0.0] for x in range(n_subjects_clean)], dtype=float)
 pattern_mean_norm = np.array([[0.0 for x in range(16)] for y in range(16)], dtype=float)
+
+min_values = subjects_sorted.min(axis=2, keepdims=True)
+max_values = subjects_sorted.max(axis=2, keepdims=True)
+normalized_subjects_sorted = (subjects_sorted - min_values) / (max_values - min_values+1e-8)
+
 for s in range(n_subjects_clean):
-    sbj = subjects_sorted[s]
-    
+    for p in range(len(subjects_sorted[s])):
+        sbj = subjects_sorted[s][p]
+        """   min = np.min(sbj[sbj>0.05])
+        max = np.max(sbj[sbj>0.05])
+        _sbj = (sbj - min) / (max - min)
+        pattern_mean_norm[p] += _sbj
+
+        min = np.min(sbj[sbj>0.05])
+        max = np.max(sbj[sbj>0.05])
+        subj_ranges[s] = [min, max]
+        #subj_sort_norm = subjects_sorted.copy()  # Create a copy to avoid modifying the original array
+        subj_sort_norm[s][subj_sort_norm[s] > 0.05] = (subj_sort_norm[s][subj_sort_norm[s] > 0.05] - min) / (max - min)
+        #pattern_mean_norm += subj_sort_norm[s] """
+    sbj=subjects_sorted[s]
     min = np.min(sbj[sbj>0.05])
     max = np.max(sbj[sbj>0.05])
     subj_ranges[s] = [min, max]
-    subj_sort_norm = subjects_sorted.copy()  # Create a copy to avoid modifying the original array
-    subj_sort_norm[subj_sort_norm > 0.05] = (subj_sort_norm[subj_sort_norm > 0.05] - min) / (max - min)
-    pattern_mean_norm += subj_sort_norm[s]
+
+    
 pattern_mean_norm /= n_subjects_clean
+pattern_mean_norm = normalized_subjects_sorted.mean(axis=0)
 subj_true_norm = np.array([[0.0 for x in range(16)] for y in range(n_subjects_clean)], dtype=float)
 subj_abs_norm = np.array([[0.0 for x in range(16)] for y in range(n_subjects_clean)], dtype=float)
 
@@ -868,19 +886,29 @@ if _anova:
     if _subj_stats:
         # subj_true
         print(subj_true.shape)
-        anova_stats = stats.f_oneway(*subj_abs)
-        print(f"Pattern F-Stat: {anova_stats.statistic:.4f} P-Value: ({anova_stats.pvalue:.4f})")
-        labels = np.array([str(i+1) for i in range(len(subj_true)) for _ in range(len(subj_true[i]))])
-        tkysubj = pairwise_tukeyhsd(np.concatenate(subj_abs), labels, alpha=0.05)
+        normalized_subjects_sorted = np.array(normalized_subjects_sorted, dtype=float)
+        anova_stats = stats.f_oneway(*normalized_subjects_sorted)
+        #print(anova_stats)
+        print(f"Subj F-Stat: {anova_stats.statistic[0]:.4f} P-Value: ({anova_stats.pvalue[0]:.4f})")
+        labels = np.array([str(i+1) for i in range(len(normalized_subjects_sorted)) for _ in range(len(normalized_subjects_sorted[i])) for __ in range(len(normalized_subjects_sorted[i][_]))])
+        _normalized_subjects_sorted = normalized_subjects_sorted.flatten()
+        tkysubj = pairwise_tukeyhsd(_normalized_subjects_sorted, labels, alpha=0.05)
         tkysubj_df = pd.DataFrame(data=tkysubj._results_table.data[1:], columns=tkysubj._results_table.data[0])
-        #print(tkysubj_df[tkysubj_df.reject==True])
+        print(tkysubj_df[tkysubj_df.reject==True])
+        tkysubj_reject_true_df = tkysubj_df[tkysubj_df['reject'] == True]
+
+        # Save the filtered results to a CSV file
+        tkysubj_reject_true_df.to_csv(pickle_dir+'tukey_results_reject_true.csv', index=False)
+
+
 
         anova_subj_norm = stats.f_oneway(*subj_abs_norm)
-        print(f"Pattern F-Stat: {anova_subj_norm.statistic:.4f} P-Value: ({anova_subj_norm.pvalue:.4f})")
+        print(f"Subj F-Stat: {anova_subj_norm.statistic:.4f} P-Value: ({anova_subj_norm.pvalue:.4f})")
         labels = np.array([str(i+1) for i in range(len(subj_true)) for _ in range(len(subj_true[i]))])
         tkysubj = pairwise_tukeyhsd(np.concatenate(subj_abs_norm), labels, alpha=0.05)
         tkysubj_df = pd.DataFrame(data=tkysubj._results_table.data[1:], columns=tkysubj._results_table.data[0])
-        print(tkysubj_df[(tkysubj_df.reject==True) & (tkysubj_df.meandiff>0.05)])
+        #print(tkysubj_df[(tkysubj_df.reject==True) & (tkysubj_df.meandiff>0.05)])
+        
 
     
     # Patterns
@@ -980,7 +1008,7 @@ if _contours:
 ## Print Accuracy by Step ##
 #print(f"{m_alg}\n{np.mean(m_alg)}")
 #########################################################################################################
-_graphs=True
+_graphs=False
 if _graphs:
     fig, (ax, ax1) = plt.subplots(1,2,figsize=(10,6))
     distr_tap = subj_true_norm.ravel()
@@ -1115,7 +1143,7 @@ if _graphs:
     
     ptrvlbox = _sbj.reshape((n_subjects_clean, -1))
     _ptrvlbox = ptrvlbox[:,sort]
-    ax.boxplot(_ptrvlbox)
+    ax.boxplot(_ptrvlbox, whis=0, showfliers=False)
     ax.plot(idx, ptrvl[sort], color='green', linestyle='-') # tap line
 
     alg=algorithms[2].ravel()
@@ -1176,23 +1204,30 @@ if _graphs:
 force_predictions_f = open(pickle_dir+"force_predictions.pkl","rb")
 force_predictions=pickle.load(force_predictions_f)
 force_predictions_f.close()
-force_predictions_names = ['OnsDen', 'OnsDen_fW', 'Sync', 'Sync_fW', 'WitekSync', 'WitekSync_fW', 'MtrStr_fBand', 'MtrStr_fBand_fW'] # meter is done by freq. channel
+force_predictions_names = ['OnsDen', 'OnsDen_fW', 'Sync', 'Sync_fW', 'WitekSync', 'WitekSync_fW', 'MtrStr_fBand', 'MtrStr_fBand_fW', 'RelativeOnsDen', 'RelativeOnsDen_fBand'] # meter is done by freq. channel
 
 ptrvl = pattern_mean_norm.ravel()
 idx = np.arange(len(ptrvl))+1
 ptrvl = ptrvl / (np.max(ptrvl)-np.min(ptrvl))
 sort = np.argsort(ptrvl)[::-1]
 idx = np.arange(len(ptrvl))+1
+results_names = ['rho', 'p-val', 'MAE', 'MSE', 'RMSE', 'R2', 'AdjR2', 'DT', 'kNN', 'SVR', 'AIC', 'BIC']
+results = np.array([[0.0 for x in range(12)] for y in range(len(force_predictions))], dtype=float) # 12 stat types
 
-
-n_force_pred = 8
+n_force_pred = len(force_predictions)
 for i in range(n_force_pred):
     rho, p_val = stats.pearsonr(ptrvl[sort], force_predictions[i][sort])
+    results[i][0] = rho
+    results[i][1] = p_val
     txt = r'rho = {:.3f}, p_val = {:.3e}'.format(rho, p_val)
+    
     print(f"{txt} ---- {force_predictions_names[i]}")
     print(f"MAE: {np.mean(np.abs(ptrvl-force_predictions[i])):.3f}")
     print(f"MSE: {np.mean(pow(ptrvl-force_predictions[i], 2)):.3f}")
     print(f"RMSE: {np.sqrt(np.mean(pow(ptrvl-force_predictions[i], 2))):.3f}")
+    results[i][2] = np.mean(np.abs(ptrvl-force_predictions[i])) 
+    results[i][3] = np.mean(pow(ptrvl-force_predictions[i], 2))
+    results[i][4] = np.sqrt(np.mean(pow(ptrvl-force_predictions[i], 2)))
 
     # R2
     model = OLS(ptrvl, force_predictions[i]).fit()
@@ -1202,15 +1237,16 @@ for i in range(n_force_pred):
     sse = np.sum((ptrvl - force_predictions[i])**2)
     r2 = 1-(sse/sst)
     adj_r2 = (1 - (1-r2)*(n-1)) / (n-k-1)
-
+    results[i][5] = r2
+    results[i][6] = adj_r2
     print(f"R^2: {r2:.3f}")
     print(f"Adj. R^2: {adj_r2:.3f}")
 
     # REGRESSIONS
     tru = ptrvl.reshape(-1,1)
     fpi = force_predictions[i].reshape(-1,1)    
-    linear_model = LinearRegression()
-    linear_model.fit(tru, fpi)
+    #linear_model = LinearRegression()
+    #linear_model.fit(tru, fpi)
 
     kNN_model = KNeighborsRegressor()
     kNN_model.fit(tru, fpi)
@@ -1237,27 +1273,11 @@ for i in range(n_force_pred):
     #print("Mean Abs Error[Linear]: %.3f (%.3f)" % (np.mean(n_scores_linear), np.std(n_scores_linear)))
     print("Mean Abs Error[kNN]: %.3f (%.3f)" % (np.mean(n_scores_kNN), np.std(n_scores_kNN)))
     print("Mean Abs Error[SVR]: %.3f (%.3f)" % (np.mean(n_scores_svr), np.std(n_scores_svr)))
+    results[i][7] = np.mean(n_scores_DT)
+    results[i][8] = np.mean(n_scores_kNN)
+    results[i][9] = np.mean(n_scores_svr)
 
-    
-    fig,(ax,ax1) = plt.subplots(2,1, figsize=(12,6))
-
-    ax.plot(idx, ptrvl[sort], color='black', linestyle='-') # tap line
-    ax.plot(idx, force_predictions[i][sort], **dashed_line_style)
-
-    fp_sort = np.argsort(force_predictions[i])[::-1]
-    ax1.plot(idx, ptrvl[fp_sort], color='black', linestyle='-', label='Normalized Tap Velocity')
-    ax1.plot(idx, force_predictions[i][fp_sort], **dashed_line_style, label="Stepwise Onset Density")
-    ax.text(np.max(idx)-(np.max(idx)*0.25)+8, 0.95, txt, size='small')
-    ax1.set_xlabel("Steps")
-    ax1.set_ylabel("")
-
-    ax.set_title(f"{force_predictions_names[i]}", **title_style)
-    fig.legend()  
-    plt.show()
-
-   
-
-# Calculate the likelihood (L) - For illustration, assuming normally distributed errors
+    # Calculate the likelihood (L) - For illustration, assuming normally distributed errors
     residuals = ptrvl - force_predictions[i]
     likelihood = np.prod(stats.norm.pdf(residuals))
 
@@ -1267,9 +1287,145 @@ for i in range(n_force_pred):
     # Calculate BIC
     BIC = n * np.mean(pow(ptrvl-force_predictions[i], 2)) + k * np.log(n)
 
+    results[i][10] = AIC
+    results[i][11] = BIC
     print(f"AIC: {AIC:.2f} - k={k}")
     print(f"BIC: {BIC:.2f} - k={k}")
-    print()
+    print()    
+    _graph=False
+    if _graph:
+        fig,(ax,ax1) = plt.subplots(2,1, figsize=(12,6))
+
+        ax.plot(idx, ptrvl[sort], color='black', linestyle='-') # tap line
+        ax.plot(idx, force_predictions[i][sort], **dashed_line_style)
+
+        fp_sort = np.argsort(force_predictions[i])[::-1]
+        ax1.plot(idx, ptrvl[fp_sort], color='black', linestyle='-', label='Normalized Tap Velocity')
+        ax1.plot(idx, force_predictions[i][fp_sort], **dashed_line_style, label="Stepwise Onset Density")
+        ax.text(np.max(idx)-(np.max(idx)*0.25)+8, 0.95, txt, size='small')
+        ax1.set_xlabel("Steps")
+        ax1.set_ylabel("")
+
+        ax.set_title(f"{force_predictions_names[i]}", **title_style)
+        fig.legend()  
+        plt.show()
+
+_alt_flats = False
+if _alt_flats:
+    alt_flats_f = open(pickle_dir+"alt_flats.pkl","rb")
+    alt_flats=pickle.load(alt_flats_f)
+    alt_flats_f.close()
+    alt_flats_names = ['OnsDen_forwardsSync', 'OnsDen_backwardsSync', 'OnsDen_meter', 'OnsDen_forwardsSync_meter', 'OnsDen_backwardsSync_meter', 'RelOnsDen_forwardsSync', 'RelOnsDen_backwardsSync', 'RelOnsDen_meter', 'RelOnsDen_forwardsSync_meter', 'RelOnsDen_backwardsSync_meter']
+    ptrvl = pattern_mean_norm.ravel()
+    idx = np.arange(len(ptrvl))+1
+    ptrvl = ptrvl / (np.max(ptrvl)-np.min(ptrvl))
+    sort = np.argsort(ptrvl)[::-1]
+    idx = np.arange(len(ptrvl))+1
+    results_names = ['rho', 'p-val', 'MAE', 'MSE', 'RMSE', 'R2', 'AdjR2', 'DT', 'kNN', 'SVR', 'AIC', 'BIC']
+    results = np.array([[0.0 for x in range(12)] for y in range(len(alt_flats))], dtype=float) # 12 stat types
+    print(alt_flats[0])
+    n_force_pred = len(alt_flats)
+    for i in range(n_force_pred):
+        rho, p_val = stats.pearsonr(ptrvl[sort], alt_flats[i][sort])
+        results[i][0] = rho
+        results[i][1] = p_val
+        txt = r'rho = {:.3f}, p_val = {:.3e}'.format(rho, p_val)
+        
+        print(f"{txt} ---- {alt_flats_names[i]}")
+        print(f"MAE: {np.mean(np.abs(ptrvl-alt_flats[i])):.3f}")
+        print(f"MSE: {np.mean(pow(ptrvl-alt_flats[i], 2)):.3f}")
+        print(f"RMSE: {np.sqrt(np.mean(pow(ptrvl-alt_flats[i], 2))):.3f}")
+        results[i][2] = np.mean(np.abs(ptrvl-alt_flats[i])) 
+        results[i][3] = np.mean(pow(ptrvl-alt_flats[i], 2))
+        results[i][4] = np.sqrt(np.mean(pow(ptrvl-alt_flats[i], 2)))
+
+        # R2
+        model = OLS(ptrvl, alt_flats[i]).fit()
+        k = len(model.params) # num coefficients
+        n = len(alt_flats[i])  # Number of data points
+        sst = np.sum((ptrvl-np.mean(ptrvl))**2)
+        sse = np.sum((ptrvl - alt_flats[i])**2)
+        r2 = 1-(sse/sst)
+        adj_r2 = (1 - (1-r2)*(n-1)) / (n-k-1)
+        results[i][5] = r2
+        results[i][6] = adj_r2
+        print(f"R^2: {r2:.3f}")
+        print(f"Adj. R^2: {adj_r2:.3f}")
+
+        # REGRESSIONS
+        tru = ptrvl.reshape(-1,1)
+        fpi = alt_flats[i].reshape(-1,1)    
+        #linear_model = LinearRegression()
+        #linear_model.fit(tru, fpi)
+
+        kNN_model = KNeighborsRegressor()
+        kNN_model.fit(tru, fpi)
+
+        DT_model = DecisionTreeRegressor()
+        DT_model.fit(tru, fpi)
+
+        svr_model = LinearSVR()
+        svr_wrap_model = MultiOutputRegressor(svr_model)
+        svr_wrap_model.fit(tru, fpi)
+
+        DT_model = DecisionTreeRegressor()
+
+        DT_model.fit(tru, fpi)
+        #   Define procedure
+        cross_validation = RepeatedKFold(n_splits=10, n_repeats=5, random_state=1) # 10-fol
+        #   Evaluate
+        np.seterr("ignore")
+        n_scores_DT = np.abs(cross_val_score(DT_model, tru, fpi, scoring='neg_mean_absolute_error', cv=cross_validation,n_jobs=-1))
+        #n_scores_linear = np.abs(cross_val_score(linear_model, tru, fpi, scoring='neg_mean_absolute_error', cv=cross_validation,n_jobs=-1))
+        n_scores_kNN = np.abs(cross_val_score(kNN_model, tru, fpi, scoring='neg_mean_absolute_error', cv=cross_validation,n_jobs=-1))
+        n_scores_svr = np.abs(cross_val_score(svr_wrap_model, tru, fpi, scoring='neg_mean_absolute_error', cv=cross_validation,n_jobs=-1))
+        print("Mean Abs Error[DT]: %.3f (%.3f)" % (np.mean(n_scores_DT), np.std(n_scores_DT)))
+        #print("Mean Abs Error[Linear]: %.3f (%.3f)" % (np.mean(n_scores_linear), np.std(n_scores_linear)))
+        print("Mean Abs Error[kNN]: %.3f (%.3f)" % (np.mean(n_scores_kNN), np.std(n_scores_kNN)))
+        print("Mean Abs Error[SVR]: %.3f (%.3f)" % (np.mean(n_scores_svr), np.std(n_scores_svr)))
+        results[i][7] = np.mean(n_scores_DT)
+        results[i][8] = np.mean(n_scores_kNN)
+        results[i][9] = np.mean(n_scores_svr)
+
+        # Calculate the likelihood (L) - For illustration, assuming normally distributed errors
+        residuals = ptrvl - alt_flats[i]
+        likelihood = np.prod(stats.norm.pdf(residuals))
+
+        # Calculate AIC
+        AIC = 2 * k - 2 * np.log(likelihood)
+        
+        # Calculate BIC
+        BIC = n * np.mean(pow(ptrvl-alt_flats[i], 2)) + k * np.log(n)
+
+        results[i][10] = AIC
+        results[i][11] = BIC
+        print(f"AIC: {AIC:.2f} - k={k}")
+        print(f"BIC: {BIC:.2f} - k={k}")
+        print()    
+        _graph=True
+        if _graph:
+            fig,(ax,ax1) = plt.subplots(2,1, figsize=(12,6))
+
+            ax.plot(idx, ptrvl[sort], color='black', linestyle='-') # tap line
+            ax.plot(idx, alt_flats[i][sort], **dashed_line_style)
+
+            fp_sort = np.argsort(alt_flats[i])[::-1]
+            ax1.plot(idx, ptrvl[fp_sort], color='black', linestyle='-', label='Normalized Tap Velocity')
+            ax1.plot(idx, alt_flats[i][fp_sort], **dashed_line_style, label="Alg Prediction")
+            ax.text(np.max(idx)-(np.max(idx)*0.25)+8, 0.95, txt, size='small')
+            ax1.set_xlabel("Steps")
+            ax1.set_ylabel("")
+
+            ax.set_title(f"{alt_flats_names[i]}", **title_style)
+            fig.legend()  
+            plt.show()
+
+
+
+
+# Save to CSV
+results_df = pd.DataFrame(results, columns=results_names)
+results_df.to_csv(pickle_dir + 'stats.csv', index=False)
 
 rho, p_val = stats.pearsonr(ptrvl[sort], pk[sort])
 txt = r'rho = {:.3f}, p_val = {:.3e}'.format(rho, p_val)
@@ -1314,18 +1470,18 @@ print("Mean Abs Error[DT]: %.3f (%.3f)" % (np.mean(n_scores_DT), np.std(n_scores
 #############################################################################################################
 #############################################################################################################
 ## Normalization By Individual Behavior ##
-_norm = False
+_norm = True
 if _norm:
-    fig, (ax, ax1) = plt.subplots(2,1,figsize=(10,8))
+    fig, (ax, ax1) = plt.subplots(1,2,figsize=(10,8))
     hist_tap = subjects_sorted[:].ravel()
     _hist_tap = hist_tap[hist_tap>0.05]
-    cnts, bins, _ = ax.hist(hist_tap, bins=20, color='dimgrey', edgecolor='darkgrey', alpha=0.7)
+    cnts, bins, _ = ax.hist(hist_tap, bins=20, color='dimgrey', edgecolor='darkgrey', alpha=0.6, orientation='horizontal')
     for i in range(len(cnts)):
         print(f"Bin {i}: Count={(cnts[i]/np.sum(cnts))*100:.2f}%, Edge={bins[i]:.2f} - {bins[i+1]:.2f}")
     print(f"{cnts[0]/np.sum(cnts):.2f}")
     ax.grid(axis='y', linestyle='-', alpha=0.6)
 
-    _cnts, _bins, _ = ax1.hist(_hist_tap, bins=20, color='dimgrey', edgecolor='darkgrey', alpha=0.7)
+    _cnts, _bins, _ = ax1.hist(_hist_tap, bins=20, color='dimgrey', edgecolor='darkgrey', alpha=0.6, orientation='horizontal')
     ax1.grid(axis='y', linestyle='-', alpha=0.6)
     plt.show()
 
@@ -1345,7 +1501,9 @@ if _norm:
         _distro_norm = ((_distro-np.min(_distro)) / (np.max(_distro)-np.min(_distro)))
         distro_vals[i] = [np.mean(_distro), np.min(_distro), np.max(_distro), np.ptp(_distro)]
         violin = ax.violinplot([_distro],positions=[i+1], showmedians=True, widths=1.0, vert=True)
+        plt.setp(plt.gca().get_xticklabels(), visible=False)
         violin2 = ax1.violinplot([_distro_norm],positions=[i+1], showmedians=True, widths=1.0, vert=True)
+        plt.setp(plt.gca().get_xticklabels(), visible=False)
         for partname in ('cbars','cmins','cmaxes','cmedians'):
             vp = violin[partname]
             #vp.set_edgecolor('black')
@@ -1358,7 +1516,7 @@ if _norm:
         for q in violin:
             if str(q) == 'bodies':
                 violin[str(q)][0].set_facecolor('dimgrey')
-                violin[str(q)][0].set_edgecolor('darkslategrey')
+                violin[str(q)][0].set_edgecolor('black')
                 violin2[str(q)][0].set_facecolor('dimgrey')
                 violin2[str(q)][0].set_edgecolor('black')
             

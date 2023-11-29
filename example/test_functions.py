@@ -91,7 +91,7 @@ def make_pos_grid(data, sections, indices, all_names,names, _plot=False):
                 indices[15].append(i)
                 names[15].append(all_names[i])
     if _plot:
-        plt.scatter(x,y, c='lightskyblue',s=7)
+        plt.scatter(x,y,marker='.', c='lightgrey',s=7)
         _x=[]
         _y=[]
         for i in range(len(x)):
@@ -99,7 +99,7 @@ def make_pos_grid(data, sections, indices, all_names,names, _plot=False):
                 _x.append(x[i])
                 _y.append(y[i])
                 plt.text(x[i],y[i],str(i))
-        plt.scatter(_x, _y, c='orangered',s=12, marker='x')
+        plt.scatter(_x, _y, c='black',s=12, marker='x', alpha=0.8)
         plt.title("Polyphonic Rhythm Space and Selected Patterns for Testing", fontfamily='serif')
         """
         #boi
@@ -118,7 +118,11 @@ def make_pos_grid(data, sections, indices, all_names,names, _plot=False):
         """
         #plt.plot((x_min,y_min),(x_min,0), c='grey')
         #plt.plot((x_min,y_min),(x_max,0), c='grey')
-
+        plt.gca().set_aspect('equal')
+        plt.xticks(np.linspace(min(x), max(x), 4))
+        plt.yticks(np.linspace(min(y), max(y), 4))
+        plt.setp(plt.gca().get_xticklabels(), visible=False)
+        plt.setp(plt.gca().get_yticklabels(), visible=False)
         plt.show()
 
 def print_sections(sections):
