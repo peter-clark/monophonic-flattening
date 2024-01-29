@@ -214,6 +214,31 @@ def test_loop(model, test_DL, criterion):
     
     #print(f"Test Error: EuclidDist:{correct_avg:.4f}, Avg loss: {test_loss:.4f}")
 
+def plot_points_with_lines(data1, data2):
+    """ plt.scatter([point[0] for point in data1], [point[1] for point in data1], marker='.', color='blue')
+    plt.scatter([point[0] for point in data2], [point[1] for point in data2], marker='x', alpha=0.8, color='green') """
+    plt.figure(figsize=(9,9))
+    x=[]
+    num_points = min(len(data1), len(data2))
+    for i in range(num_points):
+        distance = EuclideanDistance(data1[i], data2[i])
+        x.append(distance)
+        if distance < 0.1:    
+            plt.plot([np.array(data1[i])[0], np.array(data2[i])[0]],
+                     [np.array(data1[i])[1], np.array(data2[i])[1]],
+                     color='dimgrey', linewidth=0.4, alpha=0.7)
+            plt.scatter(data1[i][0], data1[i][1], marker='2', color='gray')
+            plt.scatter(data2[i][0], data2[i][1], marker='.', color='black')
+            
+    #plt.hist(x, bins=20)
+    plt.gca().set_aspect('equal')
+    plt.setp(plt.gca().get_xticklabels(), visible=False)
+    plt.setp(plt.gca().get_yticklabels(), visible=False)
+    plt.title('OnsDen_fW Predictions in Rhythm Space')
+    plt.legend(["d<0.1",'OnsDen_fW', 'Rhythm Space'], loc='upper right', fontsize='small')
+
+    plt.show()
+
 def NN_pipeline(patterns, coords, _save, model_dir, _load=False):
 
     # Load or Build Model
@@ -261,7 +286,7 @@ def NN_pipeline(patterns, coords, _save, model_dir, _load=False):
         row = torch.Tensor(patterns[i]).float()
         pred = model(row)
         predicted.append(pred.detach().numpy())
-        distance.append(EuclideanDistance(predicted[i][0:2],coords[i]))
+        distance.append(EuclideanDistance(predicted[i],coords[i]))
 
 
         if distance[i]<=0.025:
@@ -311,6 +336,7 @@ def NN_pipeline(patterns, coords, _save, model_dir, _load=False):
         torch.save(model.state_dict(), model_dir+".pt")
     CV = np.std(distance) / np.mean(distance)
     vals = [round(np.mean(distance),4), round(np.std(distance), 4),round(CV, 4)]
+    plot_points_with_lines(predicted, coords)
     return predicted, vals
 
 

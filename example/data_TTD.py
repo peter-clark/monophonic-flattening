@@ -36,7 +36,7 @@ _subject = False
 _pattern = False
 _position = False
 _tapcalibration = True #necessary for anovas
-_anova = False
+_anova = True
 
 ######################################################################################################
 ########################## Variable declaration and subject data loading #############################
@@ -395,6 +395,9 @@ steps_by_subj = np.array([[[0.0 for x in range(16)] for y in range(n_subjects_cl
 tap_consistency = np.array([[[0.0 for x in range(32)] for y in range(n_subjects_clean)] for z in range(3)], dtype=float)
 tap_by_subject = np.array([[[0.0 for x in range(32)] for y in range(3)] for z in range(n_subjects_clean)], dtype=float)
 
+tap_consistency_all = np.array([[[0.0 for x in range(32)] for y in range(n_subjects)] for z in range(3)], dtype=float)
+tap_by_subject_all = np.array([[[0.0 for x in range(32)] for y in range(3)] for z in range(n_subjects)], dtype=float)
+
 ## Remove second attempt at control patterns ##
 for n in range(n_subjects):
     cnt=[0,0,0] #ctrl1, ctrl2, pattcount
@@ -416,8 +419,16 @@ for n in range(n_subjects):
 
 ## Extract only results from non-outlier subjects ##
 idx=0
+idx2=0
 music_clean = np.array([0.0 for x in range(n_subjects_clean)], dtype=float)
 for n in range(n_subjects):
+    tap_consistency_all[0][idx2] = taptaps_low[n]
+    tap_consistency_all[1][idx2] = taptaps_mid[n]
+    tap_consistency_all[2][idx2] = taptaps_high[n]
+    tap_by_subject_all[idx2][0] = taptaps_low[n]
+    tap_by_subject_all[idx2][1] = taptaps_mid[n]
+    tap_by_subject_all[idx2][2] = taptaps_high[n]
+    idx2+=1
     if n in subjects_clean_idx:
         subjects_clean[idx] = subjects_full[n]
         # TODO Tap Consistency as well! One function to get clean subjects
@@ -429,6 +440,15 @@ for n in range(n_subjects):
         tap_by_subject[idx][2] = taptaps_high[n]
         music_clean[idx]=music[n]
         idx += 1
+
+
+subjects_save = np.array([[[0.0 for x in range(16)] for y in range(len(test_patterns))] for z in range(n_subjects)], dtype=float)
+for n in range(n_subjects):
+    for patt in range(len(subjects_full[n])):
+        for p in range(len(test_patterns)):
+            if int(subjects_full[n][patt][0]) == test_patterns[p]:
+                subjects_save[n][p] = subjects_full[n][patt][1:]
+        
 
 ## Sort into ordered by test num and position in the pattern ##
 for n in range(n_subjects_clean):
@@ -496,11 +516,49 @@ for s in range(n_subjects_clean):
     max = np.max(sbj[sbj>0.05])
     subj_ranges[s] = [min, max]
 
-    
 pattern_mean_norm /= n_subjects_clean
 pattern_mean_norm = normalized_subjects_sorted.mean(axis=0)
 subj_true_norm = np.array([[0.0 for x in range(16)] for y in range(n_subjects_clean)], dtype=float)
 subj_abs_norm = np.array([[0.0 for x in range(16)] for y in range(n_subjects_clean)], dtype=float)
+
+#### Save results to csv and pkl for uploading ####
+#tapped data by all subjects for the calibration experiment (32 steps x 43 subjects)
+file = open(os.getcwd()+"/data/tap_consistency.pkl", 'wb')
+pickle.dump(taptaps, file, -1)
+file.close()
+with open(os.getcwd()+"/data/tap_consistency.csv",'w') as f:
+    writer = csv.writer(f)                
+    for i in range(len(taptaps)):
+        writer.writerow(taptaps[i,:,:].ravel())
+
+#unfiltered taps for all subjects ordered by pattern (16 patterns x 43 subjects)
+file = open(os.getcwd()+"/data/raw_subjects.pkl", 'wb')
+pickle.dump(subjects_save, file, -1)
+file.close()
+with open(os.getcwd()+"/data/raw_subjects.csv",'w') as f:
+    writer = csv.writer(f)                
+    for i in range(len(subjects_save)):
+        writer.writerow(subjects_save[i].ravel())
+
+#filtered taps for all subjects ordered by pattern (16 patterns x 37 subjects)
+file = open(os.getcwd()+"/data/clean_subjects.pkl", 'wb')
+pickle.dump(normalized_subjects_sorted, file, -1)
+file.close()
+with open(os.getcwd()+"/data/clean_subjects.csv",'w') as f:
+    writer = csv.writer(f)                
+    for i in range(len(normalized_subjects_sorted)):
+        writer.writerow(normalized_subjects_sorted[i])
+
+#mean tap for the 256s steps alongside all possible flattening algorithm used
+file = open(os.getcwd()+"/data/pattern_mean_norm.pkl", 'wb')
+pickle.dump(pattern_mean_norm, file, -1)
+file.close()
+with open(os.getcwd()+"/data/pattern_mean_norm.csv",'w') as f:
+    writer = csv.writer(f)                
+    for i in range(len(pattern_mean_norm)):
+        writer.writerow(pattern_mean_norm[i])
+
+
 
 for p in range(len(test_patterns)):
     for per in range(n_subjects_clean):
@@ -718,18 +776,18 @@ if _tapcalibration:
     colors_dark=['indigo','royalblue','forestgreen']
     tapidx = np.arange(32)+1
 
-    for i in range(n_subjects_clean):
-        ax.scatter(tapidx, tap_consistency[0,i], color=colors_light[2], marker='x', linestyle='--', linewidth=1)
-        ax.scatter(tapidx, tap_consistency[1,i], color=colors_light[1], marker='x', linestyle='--', linewidth=1)
-        ax.scatter(tapidx, tap_consistency[2,i], color=colors_light[0], marker='x', linestyle='--', linewidth=1)
+    for i in range(n_subjects):
+        ax.scatter(tapidx, tap_consistency_all[0,i], color=colors_light[2], marker='x', linestyle='--', linewidth=1)
+        ax.scatter(tapidx, tap_consistency_all[1,i], color=colors_light[1], marker='x', linestyle='--', linewidth=1)
+        ax.scatter(tapidx, tap_consistency_all[2,i], color=colors_light[0], marker='x', linestyle='--', linewidth=1)
 
-    bp_low = ax.boxplot(tap_consistency[0], patch_artist=True, boxprops=dict(linewidth=1, alpha=0.3, facecolor=colors_light[2]))
-    bp_mid = ax.boxplot(tap_consistency[1], patch_artist=True, boxprops=dict(linewidth=1, alpha=0.3, facecolor=colors_light[1]))
-    bp_high = ax.boxplot(tap_consistency[2], patch_artist=True, boxprops=dict(linewidth=1, alpha=0.3, facecolor=colors_light[0]))
+    bp_low = ax.boxplot(tap_consistency_all[0], patch_artist=True, boxprops=dict(linewidth=1, alpha=0.3, facecolor=colors_light[2]))
+    bp_mid = ax.boxplot(tap_consistency_all[1], patch_artist=True, boxprops=dict(linewidth=1, alpha=0.3, facecolor=colors_light[1]))
+    bp_high = ax.boxplot(tap_consistency_all[2], patch_artist=True, boxprops=dict(linewidth=1, alpha=0.3, facecolor=colors_light[0]))
 
-    ax.plot(tapidx, np.mean(tap_consistency[0], axis=0), color=colors_dark[2], label="Mean Tap Low")
-    ax.plot(tapidx, np.mean(tap_consistency[1], axis=0), color=colors_dark[1], label="Mean Tap Mid")
-    ax.plot(tapidx, np.mean(tap_consistency[2], axis=0), color=colors_dark[0], label="Mean Tap High")
+    ax.plot(tapidx, np.mean(tap_consistency_all[0], axis=0), color=colors_dark[2], label="Mean Tap Low")
+    ax.plot(tapidx, np.mean(tap_consistency_all[1], axis=0), color=colors_dark[1], label="Mean Tap Mid")
+    ax.plot(tapidx, np.mean(tap_consistency_all[2], axis=0), color=colors_dark[0], label="Mean Tap High")
 
     ax.axhline(y=42,color='seagreen', alpha=0.6, linestyle='--', label='Low / Mid Boundary')
     ax.axhline(y=84,color='slateblue', alpha=0.6, linestyle='--', label='Mid / High Boundary')
@@ -745,7 +803,7 @@ if _tapcalibration:
     # Plot 2 (Tap Consistency)
     fig = plt.figure(figsize=(12,6))
     ax = fig.add_subplot()
-    subjidx = np.arange(n_subjects_clean)+1
+    subjidx = np.arange(n_subjects)+1
     ax.grid(color='lightgray', linestyle='-', linewidth=0.6, alpha=0.7, axis='y')
 
     pos_low = subjidx - 0.25
@@ -753,27 +811,27 @@ if _tapcalibration:
     width = 0.20
 
     line = ax.axhline(y=0,color='black', alpha=0.6, linestyle='--', label='Middle of Target Range')
-    p1 = (n_subjects_clean+1,-float(0.33/2))
+    p1 = (n_subjects+1,-float(0.33/2))
     p2 = (0.0,float(0.33/2))
     rect = mpl.patches.Rectangle((p2[0], p1[1]), p1[0] - p2[0], p2[1] - p1[1], linewidth=1, edgecolor='darkgreen', facecolor='lightgreen', alpha=0.15, linestyle='--', label='Target Range (+/-)')
     ax.add_patch(rect)
 
-    _tap_by_subject = tap_by_subject
-    for i in range(n_subjects_clean):
+    _tap_by_subject = tap_by_subject_all
+    for i in range(n_subjects):
         # Abs
         """ _tap_by_subject[i][2] = np.abs((tap_by_subject[i][2]-105))/127
         _tap_by_subject[i][1] = np.abs((tap_by_subject[i][1]-63))/127
         _tap_by_subject[i][0] = np.abs((tap_by_subject[i][0]-21))/127 """
         # True
-        _tap_by_subject[i][2] = (tap_by_subject[i][2]-105)/127
-        _tap_by_subject[i][1] = (tap_by_subject[i][1]-63)/127
-        _tap_by_subject[i][0] = (tap_by_subject[i][0]-21)/127
+        _tap_by_subject[i][2] = (tap_by_subject_all[i][2]-105)/127
+        _tap_by_subject[i][1] = (tap_by_subject_all[i][1]-63)/127
+        _tap_by_subject[i][0] = (tap_by_subject_all[i][0]-21)/127
     
     bp1_low = ax.boxplot(_tap_by_subject[:,0,:].T, positions=pos_low, widths=width, patch_artist=True, showfliers=True, boxprops=dict(facecolor=colors_light[2], alpha=0.5),flierprops=dict(marker='x',markeredgecolor=colors_light[2], markersize='5'))
     bp1_mid = ax.boxplot(_tap_by_subject[:,1,:].T, positions=subjidx, widths=width, patch_artist=True, showfliers=True, boxprops=dict(facecolor=colors_light[1], alpha=0.5),flierprops=dict(marker='x',markeredgecolor=colors_light[1], markersize='5'))
     bp1_high = ax.boxplot(_tap_by_subject[:,2,:].T, positions=pos_high, widths=width, patch_artist=True, showfliers=True, boxprops=dict(facecolor=colors_light[0], alpha=0.5),flierprops=dict(marker='x',markeredgecolor=colors_light[0], markersize='5'))
 
-    for i in range(n_subjects_clean):
+    for i in range(n_subjects):
         ax.plot(pos_low[i], np.mean(_tap_by_subject[:,0]), color = colors_dark[2], marker='x', alpha=1)
         ax.plot(subjidx[i], np.mean(_tap_by_subject[:,1]), color = colors_dark[1], marker='x', alpha=1)
         ax.plot(pos_high[i], np.mean(_tap_by_subject[:,2]), color = colors_dark[0], marker='x', alpha=1)
@@ -781,7 +839,7 @@ if _tapcalibration:
 
     # Title and axes values
     # ax.set(xlim=[0,n_subjects_clean+1], ylim=[-0.06,1.0], xticks=subjidx, xticklabels=subjidx, yticks=np.arange(start=0.0,stop=1.0,step=0.1))
-    ax.set(xlim=[0,n_subjects_clean+1], ylim=[-0.9,0.7], xticks=subjidx, xticklabels=subjidx, yticks=np.arange(start=-0.9,stop=0.7,step=0.1))
+    ax.set(xlim=[0,n_subjects+1], ylim=[-0.9,0.7], xticks=subjidx, xticklabels=subjidx, yticks=np.arange(start=-0.9,stop=0.7,step=0.1))
     
     ax.set_title(f"Subject Mean Abs. Err. for Tap Consistency", fontsize=14, fontfamily='serif',fontweight='book')
     ax.set_xlabel("Subject #", fontsize=12, fontfamily='sans-serif')
@@ -815,9 +873,11 @@ if _anova:
     np.set_printoptions(precision=4)
 
     ## Tap Consistency ##
-    _tc_stats = False
+    _tc_stats = True
     if _tc_stats:
         print(f"MAE: LOW[{np.mean(np.mean(_tap_by_subject[:,0], axis=0)):.4f}] ---- MID[{np.mean(np.mean(_tap_by_subject[:,1], axis=0)):.4f}] ---- HIGH[{np.mean(np.mean(_tap_by_subject[:,2], axis=0)):.4f}]")
+        print(f"MAE: LOW[{np.std(np.mean(_tap_by_subject[:,0], axis=0)):.4f}] ---- MID[{np.std(np.mean(_tap_by_subject[:,1], axis=0)):.4f}] ---- HIGH[{np.std(np.mean(_tap_by_subject[:,2], axis=0)):.4f}]")
+
         # Tap Range --------------
         anova_testtype = stats.f_oneway(np.mean(_tap_by_subject[:,0], axis=0), np.mean(_tap_by_subject[:,1], axis=0), np.mean(_tap_by_subject[:,2], axis=0))
         print(f"Tap Consistency F-Stat: {anova_testtype.statistic:.4f} P-Value: ({anova_testtype.pvalue:.4f})")
@@ -861,24 +921,30 @@ if _anova:
         print(f"Tap Consistency F-Stat: {anova_quarters.statistic:.4f} P-Value: ({anova_quarters.pvalue:.4f})")
         print(tky2_df)
 
-
+        
         all_quarters=np.array(all_quarters, dtype=float)
         fig,(ax,ax1) = plt.subplots(1,2, figsize=(11,8))
         subjidx = np.arange(4)+1
         subjidx=np.array([0.6,0.8,1.0,1.2], dtype=float)
         ax.grid(color='lightgray', linestyle='-', linewidth=0.6, alpha=0.7, axis='y')
         width = 0.20
-        bp = ax.boxplot(all_quarters.T, positions=subjidx, widths=width, patch_artist=True, showfliers=True, boxprops=dict(facecolor='dimgrey', alpha=0.5),flierprops=dict(marker='x',markeredgecolor='dimgrey', markersize='5'))
-        ax.set_ylim(-0.5,0.5)
+        bp = ax.boxplot(all_quarters.T, positions=subjidx, widths=width, patch_artist=True, showfliers=True, medianprops=dict(color='black'), boxprops=dict(facecolor='dimgrey', alpha=0.5),flierprops=dict(marker='x',markeredgecolor='dimgrey', markersize='5'))
+        ax.set_ylim(-0.3,0.3)
         ax.set_xlim(0.4,1.5)
         ax.set_xticklabels(['Q1','Q2','Q3','Q4'])
-
+        fig.suptitle("Mean Tap Error by Quartile & Range")
+        plt.tight_layout()
         subjidx=[0.7,1.0,1.3]
-        bp2 = ax1.boxplot(all_taps2.T, positions=subjidx, widths=width, patch_artist=True, showfliers=True, boxprops=dict(facecolor='dimgrey', alpha=0.5),flierprops=dict(marker='x',markeredgecolor='dimgrey', markersize='5'))
-        ax1.set_ylim(-0.5,0.5)
+        bp2 = ax1.boxplot(all_taps2[0,:].T, positions=[subjidx[0]], widths=width, patch_artist=True, showfliers=True, medianprops=dict(color=colors_dark[2]), boxprops=dict(facecolor=colors_light[2], alpha=0.5),flierprops=dict(marker='x',markeredgecolor=colors_light[2], markersize='5'))
+        bp3 = ax1.boxplot(all_taps2[1,:].T, positions=[subjidx[1]], widths=width, patch_artist=True, showfliers=True, medianprops=dict(color=colors_dark[1]), boxprops=dict(facecolor=colors_light[1], alpha=0.5),flierprops=dict(marker='x',markeredgecolor=colors_light[1], markersize='5'))
+        bp4 = ax1.boxplot(all_taps2[2,:].T, positions=[subjidx[2]], widths=width, patch_artist=True, showfliers=True, medianprops=dict(color=colors_dark[0]), boxprops=dict(facecolor=colors_light[0], alpha=0.5),flierprops=dict(marker='x',markeredgecolor=colors_light[0], markersize='5'))
+        ax1.set_ylim(-0.3,0.3)
         ax1.set_xlim(0.5,1.6)
+        ax1.set_ylabel("Mean Error")
         ax1.set_xticklabels(['Low','Mid','High'])
         ax1.grid(color='lightgray', linestyle='-', linewidth=0.6, alpha=0.7, axis='y')
+        ax1.legend([bp1_low["boxes"][0], bp1_mid["boxes"][0], bp1_high["boxes"][0]],('Low Tap Range', 'Mid Tap Range', 'High Tap Range'))
+
         plt.show()
     
     # Subjects (if necessary)
@@ -1008,6 +1074,9 @@ if _contours:
 ## Print Accuracy by Step ##
 #print(f"{m_alg}\n{np.mean(m_alg)}")
 #########################################################################################################
+force_predictions_f = open(pickle_dir+"force_predictions.pkl","rb")
+force_predictions=pickle.load(force_predictions_f)
+force_predictions_f.close()
 _graphs=False
 if _graphs:
     fig, (ax, ax1) = plt.subplots(1,2,figsize=(10,6))
@@ -1046,7 +1115,8 @@ if _graphs:
     
     ptrvl = pattern_mean_norm.ravel()
     ptrvl = ptrvl / (np.max(ptrvl)-np.min(ptrvl))
-    pmn_rvl = pmn.ravel()
+    pmn_rvl = pmn.ravel()   
+    #pk=force_predictions[6].ravel()
     sort = np.argsort(ptrvl)[::-1]
     sort_pk = np.argsort(pk)[::-1]
     idx = np.arange(len(ptrvl))+1
@@ -1073,6 +1143,7 @@ if _graphs:
     for lvl in range(len(lvls)):
         running += idxlen[lvl]
         line = np.sort((stepwise[running-idxlen[lvl]:running]))[::-1]
+        print(f"--------------------------------------------{np.mean(line)} ({np.std(line)})")
         ax1.plot(np.arange(idxlen[lvl])+1+running-idxlen[lvl], line, color='black')
 
     sort_bbb = np.argsort(bbb)[::-1]
@@ -1470,9 +1541,10 @@ print("Mean Abs Error[DT]: %.3f (%.3f)" % (np.mean(n_scores_DT), np.std(n_scores
 #############################################################################################################
 #############################################################################################################
 ## Normalization By Individual Behavior ##
-_norm = True
+_norm = False
 if _norm:
-    fig, (ax, ax1) = plt.subplots(1,2,figsize=(10,8))
+    fig, (ax, ax1) = plt.subplots(1,2,figsize=(10,8), sharey=True)
+    ax.set_ylim(0.0,1.0)
     hist_tap = subjects_sorted[:].ravel()
     _hist_tap = hist_tap[hist_tap>0.05]
     cnts, bins, _ = ax.hist(hist_tap, bins=20, color='dimgrey', edgecolor='darkgrey', alpha=0.6, orientation='horizontal')
@@ -1480,9 +1552,10 @@ if _norm:
         print(f"Bin {i}: Count={(cnts[i]/np.sum(cnts))*100:.2f}%, Edge={bins[i]:.2f} - {bins[i+1]:.2f}")
     print(f"{cnts[0]/np.sum(cnts):.2f}")
     ax.grid(axis='y', linestyle='-', alpha=0.6)
-
     _cnts, _bins, _ = ax1.hist(_hist_tap, bins=20, color='dimgrey', edgecolor='darkgrey', alpha=0.6, orientation='horizontal')
     ax1.grid(axis='y', linestyle='-', alpha=0.6)
+    plt.suptitle("Distribution of Tap Velocity")
+    plt.tight_layout()
     plt.show()
 
     fig, (ax, ax1) = plt.subplots(2,1,figsize=(12,8))

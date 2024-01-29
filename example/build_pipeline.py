@@ -15,8 +15,8 @@ dir = os.getcwd()
 _savepatterns = False
 _saveflattened = False
 _saveembeddings = False
-_savemodels = True
-_savepredictions = True
+_savemodels = False
+_savepredictions = False
 #_savepredictions = _savemodels
 
 ## Extract all patterns and names from MIDI files in (+sub)folder
@@ -166,7 +166,7 @@ for pattern in range(len(all_pattlists)):
     for i in range(len(flat_by_alg)):
         flat_by_alg[i][pattern] = flat[i]
     
-    _pred2 = True
+    _pred2 = False
     if _pred2:
         predictions2[0][pattern] = flatten.onset_density(all_pattlists[pattern])
         predictions2[1][pattern] = flatten.witek_scaling(all_pattlists[pattern])
@@ -179,7 +179,7 @@ for pattern in range(len(all_pattlists)):
         predictions2[8][pattern] = flatten.relative_density(all_pattlists[pattern], type=1)
         predictions2[9][pattern] = flatten.relative_density(all_pattlists[pattern], type=2)
     
-    _alt_flat2 = True
+    _alt_flat2 = False
     if _alt_flat2:
         f_weight=0
         alt_flats2[0][pattern] = flatten.flatten_type(all_pattlists[pattern], density_type=1, sync_type=1, meter=0, f_weight=f_weight)
@@ -300,7 +300,7 @@ file.close()
 
 print("Patterns have been flattened\n")
 for i in range(2):
-    print(notes/np.sum(notes[i]))
+    print(notes[i])
 
 ## Send flattened patterns + embedding coordinates to model to train
 #       (4 x 4) -> embeddings x patterns 
@@ -324,7 +324,7 @@ for embed in embeddings:
 
 force_predictions_names = ['OnsDen', 'OnsDen_fW', 'Sync', 'Sync_fW', 'WitekSync', 'WitekSync_fW', 'MtrStr_fBand', 'MtrStr_fBand_fW', 'RelativeOnsDen', 'RelativeOnsDen_fBand'] # meter is done by freq. channel
 alt_flats_names = ['OnsDen_forwardsSync', 'OnsDen_backwardsSync', 'OnsDen_meter', 'OnsDen_forwardsSync_meter', 'OnsDen_backwardsSync_meter', 'RelOnsDen_forwardsSync', 'RelOnsDen_backwardsSync', 'RelOnsDen_meter', 'RelOnsDen_forwardsSync_meter', 'RelOnsDen_backwardsSync_meter']
-type=2 # 0 cont, 1 semi, 2 disc
+type=0 # 0 cont, 1 semi, 2 disc
 stats_full = []
 if _pred2:
     if type==1:
