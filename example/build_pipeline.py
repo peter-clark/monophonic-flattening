@@ -17,7 +17,7 @@ _saveflattened = False
 _saveembeddings = False
 _savemodels = False
 _savepredictions = False
-#_savepredictions = _savemodels
+_savepredictions = _savemodels
 
 ## Extract all patterns and names from MIDI files in (+sub)folder
 all_pattlists, all_names = fun.rootfolder2pattlists("midi/","allinstruments")
@@ -29,6 +29,7 @@ if _savepatterns:
         filename = patterns_dir+str(all_names[index])+".txt"
         with open(filename, "w") as f:
             f.write(str(all_pattlists[index]))
+
 
 _descriptors = True
 if _descriptors:
@@ -106,7 +107,7 @@ predictions2 = np.array([[[0.0 for x in range(16)] for y in range(len(all_pattli
 num_alt_flats = 10
 alt_flats = np.array([[0.0 for x in range(256)] for y in range(num_alt_flats)], dtype=float)
 alt_flats2 = np.array([[[0.0 for x in range(16)] for y in range(len(all_pattlists))] for z in range(num_alt_flats)], dtype=float)
-
+all_patterns = np.array([[0.0 for y in range(16)] for x in range(len(all_pattlists))], dtype=float)
 for pattern in range(len(all_pattlists)):
     #print(all_names[pattern])
     p = get_LMH(all_pattlists[pattern])
@@ -166,7 +167,7 @@ for pattern in range(len(all_pattlists)):
     for i in range(len(flat_by_alg)):
         flat_by_alg[i][pattern] = flat[i]
     
-    _pred2 = False
+    _pred2 = True
     if _pred2:
         predictions2[0][pattern] = flatten.onset_density(all_pattlists[pattern])
         predictions2[1][pattern] = flatten.witek_scaling(all_pattlists[pattern])
@@ -179,7 +180,7 @@ for pattern in range(len(all_pattlists)):
         predictions2[8][pattern] = flatten.relative_density(all_pattlists[pattern], type=1)
         predictions2[9][pattern] = flatten.relative_density(all_pattlists[pattern], type=2)
     
-    _alt_flat2 = False
+    _alt_flat2 = True
     if _alt_flat2:
         f_weight=0
         alt_flats2[0][pattern] = flatten.flatten_type(all_pattlists[pattern], density_type=1, sync_type=1, meter=0, f_weight=f_weight)
@@ -281,13 +282,21 @@ file = open(os.getcwd()+"/flat/flatbyalg.pkl", 'wb')
 pickle.dump(flat_by_alg, file, -1)
 file.close()
 
+file = open(os.getcwd()+"/data/all_patterns.pkl", 'wb')
+pickle.dump(all_patterns, file, -1)
+file.close()
+
 file = open(os.getcwd()+"/data/force_predictions.pkl", 'wb')
 pickle.dump(predictions, file, -1)
 file.close()
 
+file = open(os.getcwd()+"/data/force_predictions2.pkl", 'wb')
+pickle.dump(predictions2, file, -1)
+file.close()
+
 #p#rint(alt_flats[0])
-file = open(os.getcwd()+"/data/alt_flats.pkl", 'wb')
-pickle.dump(alt_flats, file, -1)
+file = open(os.getcwd()+"/data/alt_flats2.pkl", 'wb')
+pickle.dump(alt_flats2, file, -1)
 file.close()
 
 file = open(os.getcwd()+"/data/overall_note_density.pkl", 'wb')
@@ -327,6 +336,7 @@ alt_flats_names = ['OnsDen_forwardsSync', 'OnsDen_backwardsSync', 'OnsDen_meter'
 type=0 # 0 cont, 1 semi, 2 disc
 stats_full = []
 if _pred2:
+    ## DO the types take mean value of alg, or all algs??
     if type==1:
         mv = np.mean(predictions2, axis=-1, keepdims=True)
         predictions2 = np.where(predictions2>=mv,predictions2, 0.0)
@@ -341,7 +351,8 @@ if _pred2:
             model_dir += (force_predictions_names[pred])
             print(force_predictions_names[pred]+"--------------")
             name = force_predictions_names[pred]
-            predicted_coords, stats = NN.NN_pipeline(predictions2[pred], embed, _savemodels, model_dir)
+            model_dir += '.pt'
+            predicted_coords, stats = NN.NN_pipeline(predictions2[pred], embed, _savemodels, model_dir, True)
             #predicted_coords = NN.NN_pipeline(predictions2[pred], embed, _savemodels, model_dir, True)
             stats = stats+[name]
             stats_full.append(stats)
@@ -365,7 +376,7 @@ if _alt_flat2:
             predicted_coords = []
             # Build model
             model_dir += (alt_flats_names[pred])
-            print(alt_flats_names[pred]+"--------------")
+            print("\n{alt_flats_names[pred]} --------------")
             name = alt_flats_names[pred]
             predicted_coords, stats = NN.NN_pipeline(alt_flats2[pred], embed, _savemodels, model_dir)
             #predicted_coords = NN.NN_pipeline(predictions2[pred], embed, _savemodels, model_dir, True)

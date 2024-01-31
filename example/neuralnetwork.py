@@ -8,8 +8,9 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.utils.data as tdata
 import torch.backends.mps
-from sklearn.model_selection import cross_val_score
-from sklearn.model_selection import RepeatedStratifiedKFold
+from sklearn.model_selection import cross_val_score, KFold
+from sklearn.model_selection import RepeatedKFold
+from sklearn.metrics import make_scorer
 
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
@@ -227,8 +228,11 @@ def plot_points_with_lines(data1, data2):
             plt.plot([np.array(data1[i])[0], np.array(data2[i])[0]],
                      [np.array(data1[i])[1], np.array(data2[i])[1]],
                      color='dimgrey', linewidth=0.4, alpha=0.7)
-            plt.scatter(data1[i][0], data1[i][1], marker='2', color='gray')
+            plt.scatter(data1[i][0], data1[i][1], marker='2', color='red')
             plt.scatter(data2[i][0], data2[i][1], marker='.', color='black')
+        """ else: 
+                plt.scatter(data1[i][0], data1[i][1], marker='x', color='grey', alpha=0.6)
+                plt.scatter(data2[i][0], data2[i][1], marker='.', color='grey', alpha=0.6) """
             
     #plt.hist(x, bins=20)
     plt.gca().set_aspect('equal')
@@ -239,6 +243,10 @@ def plot_points_with_lines(data1, data2):
 
     plt.show()
 
+def mean_euclidean_distance(y_true, y_pred):
+    distances = [EuclideanDistance(true, pred) for true, pred in zip(y_true, y_pred)]
+    return np.mean(distances)
+
 def NN_pipeline(patterns, coords, _save, model_dir, _load=False):
 
     # Load or Build Model
@@ -248,8 +256,6 @@ def NN_pipeline(patterns, coords, _save, model_dir, _load=False):
         model = build_model()
     
     seed = np.random.randint(0,1000)
-
-    ## k-FOLD CROSSEVALUATION necessary?
 
     if _load==False:
         # Train
@@ -322,21 +328,33 @@ def NN_pipeline(patterns, coords, _save, model_dir, _load=False):
 
         #if i!=0 and i%200==0:
             #print(f"Pred:[{predicted[i][0]:.3f},{predicted[i][1]:.3f}]-->Actual:[{coords[i][0]:.3f},{coords[i][1]:.3f}] <> Dist:{distance[i]:.3f}")
-    #print(f"\n|{threshold_bins[0]/len(patterns):.3f}|{threshold_bins[1]/len(patterns):.3f}|{threshold_bins[2]/len(patterns):.3f}|{threshold_bins[3]/len(patterns):.3f}|{threshold_bins[4]/len(patterns):.3f}|{threshold_bins[5]/len(patterns):.3f}|{threshold_bins[6]/len(patterns):.3f}|{threshold_bins[7]/len(patterns):.3f}| <-- CUMULATIVE")
-    #print(f"|{_threshold_bins[0]/len(patterns):.3f}|{_threshold_bins[1]/len(patterns):.3f}|{_threshold_bins[2]/len(patterns):.3f}|{_threshold_bins[3]/len(patterns):.3f}|{_threshold_bins[4]/len(patterns):.3f}|{_threshold_bins[5]/len(patterns):.3f}|{_threshold_bins[6]/len(patterns):.3f}|{_threshold_bins[7]/len(patterns):.3f}| <-- SEPARATE")
-    #print(f"|-----|-----|-----|-----|-----|-----|-----|-----|")
-    #print(f"|0.025|0.050|0.075|0.100|0.150|0.200|0.250|1.000| <-- DISTANCE BINS") 
-    print(f"\n >>>>>>>>>>>>>>>>>>>>>>> Euclidean Distance = {np.mean(distance):.5f}[{np.std(distance):.3f}]var:{np.var(distance):.3f} <<<<<<<<< CV{np.std(distance) / np.mean(distance):.5f}")
+    print(f"\n|{threshold_bins[0]/len(patterns):.3f}|{threshold_bins[1]/len(patterns):.3f}|{threshold_bins[2]/len(patterns):.3f}|{threshold_bins[3]/len(patterns):.3f}|{threshold_bins[4]/len(patterns):.3f}|{threshold_bins[5]/len(patterns):.3f}|{threshold_bins[6]/len(patterns):.3f}|{threshold_bins[7]/len(patterns):.3f}| <-- CUMULATIVE")
+    print(f"|{_threshold_bins[0]/len(patterns):.3f}|{_threshold_bins[1]/len(patterns):.3f}|{_threshold_bins[2]/len(patterns):.3f}|{_threshold_bins[3]/len(patterns):.3f}|{_threshold_bins[4]/len(patterns):.3f}|{_threshold_bins[5]/len(patterns):.3f}|{_threshold_bins[6]/len(patterns):.3f}|{_threshold_bins[7]/len(patterns):.3f}| <-- SEPARATE")
+    print(f"|-----|-----|-----|-----|-----|-----|-----|-----|")
+    print(f"|0.025|0.050|0.075|0.100|0.150|0.200|0.250|1.000| <-- DISTANCE BINS") 
+    #print(f"\n >>>>>>>>>>>>>>>>>>>>>>> Euclidean Distance = {np.mean(distance):.5f}[{np.std(distance):.3f}]var:{np.var(distance):.3f} <<<<<<<<< CV{np.std(distance) / np.mean(distance):.5f}")
+    
+    kf = KFold(n_splits=10, shuffle=True, random_state=1)
+    scores = []
+    predicted_coords=np.array(predicted)
+    target_coords=np.array(coords)
+    for train_index, test_index in kf.split(predicted_coords):
+        train_preds, test_preds = predicted_coords[train_index], predicted_coords[test_index]
+        train_targets, test_targets = target_coords[train_index], target_coords[test_index]
 
-    """ 
-    seaborn.histplot(distance)
-    plt.show()
-     """
+        score = mean_euclidean_distance(test_targets, test_preds)
+        scores.append(score)
+    """ # cross eval
+    cv = RepeatedKFold(n_splits=10, n_repeats=3, random_state=1)
+    scores = cross_val_score(None, patterns, coords, scoring=make_scorer(mean_euclidean_distance), cv=cv, n_jobs=-1)"""
+    print('Mean Accuracy: %.3f (%.3f)' % (np.mean(scores), np.std(scores)))
+
+
     if _save:
         torch.save(model.state_dict(), model_dir+".pt")
     CV = np.std(distance) / np.mean(distance)
     vals = [round(np.mean(distance),4), round(np.std(distance), 4),round(CV, 4)]
-    plot_points_with_lines(predicted, coords)
+    #plot_points_with_lines(predicted, coords)
     return predicted, vals
 
 
